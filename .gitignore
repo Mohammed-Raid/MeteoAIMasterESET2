@@ -1,0 +1,28 @@
+# Sorties de compilation ------------------------------------------------------
+build/
+Debug/
+Release/
+*.o
+*.d
+*.su
+*.map
+*.list
+
+# Les ELF portent les symboles de debogage et pesent plusieurs Mo.
+# Les .bin, eux, sont legers et utiles pour une demonstration sans recompiler.
+*.elf
+
+# Python ----------------------------------------------------------------------
+__pycache__/
+*.pyc
+.venv/
+venv/
+
+# Artefacts intermediaires de la chaine IA ------------------------------------
+# saved_model/ est regenere par 3_export_onnx.py a partir du .keras
+TP3_IA/saved_model/
+
+# Divers ----------------------------------------------------------------------
+.DS_Store
+Thumbs.db
+*.swp

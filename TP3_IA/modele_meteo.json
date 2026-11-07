@@ -1,0 +1,29 @@
+{
+  "features": [
+    "temp",
+    "rhum",
+    "pres"
+  ],
+  "normalisation": {
+    "moyenne": [
+      12.95862865447998,
+      74.98979187011719,
+      1016.4057006835938
+    ],
+    "ecart_type": [
+      7.276533603668213,
+      17.85812759399414,
+      9.554758071899414
+    ]
+  },
+  "classes": [
+    "Clair",
+    "Partiellement nuageux",
+    "Couvert",
+    "Precipitations"
+  ],
+  "architecture": "16-8",
+  "parametres": 236,
+  "exactitude": 0.48473121305938643,
+  "exactitude_equilibree": 0.4179412818540893
+}
