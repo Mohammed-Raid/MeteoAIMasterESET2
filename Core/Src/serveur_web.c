@@ -30,6 +30,7 @@
 #include "semphr.h"
 
 #include "lwip/sockets.h"
+#include "lwip/netif.h"
 
 #define PILE_TACHE_WEB       2048
 #define PRIORITE_TACHE_WEB   2
@@ -271,7 +272,20 @@ static void tache_serveur(void *argument)
   }
 
   listen(ecoute, 4);
-  printf("Serveur web pret : http://<adresse IP de la carte>/\r\n");
+
+  /* L'adresse est reaffichee ici, et non seulement au moment du DHCP : le
+     jour de la demonstration on ne veut pas avoir a fouiller l'historique
+     de la console pour la retrouver. */
+  {
+    char adresse_texte[16] = "?";
+
+    if (netif_default != NULL)
+    {
+      ip4addr_ntoa_r(netif_ip4_addr(netif_default), adresse_texte,
+                     sizeof(adresse_texte));
+    }
+    printf("Serveur web pret : http://%s/\r\n", adresse_texte);
+  }
 
   while (1)
   {

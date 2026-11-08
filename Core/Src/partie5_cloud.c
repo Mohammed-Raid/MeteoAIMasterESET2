@@ -172,6 +172,7 @@ static void tache_application(void *argument)
     format_float(entrees[1], texte, sizeof(texte));
     printf("  RH=%s", texte);
     format_float(entrees[2], texte, sizeof(texte));
+    printf("  P=%s", texte);
     format_float(etat.duree_edge_us, texte, sizeof(texte));
     printf("  Edge: %-22s %s us\r\n", ia_noms_classes[classe_edge], texte);
 

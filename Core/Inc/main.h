@@ -27,7 +27,7 @@ extern "C" {
  *  Programme temoin du TP3 §3.d : make PARTIE=4 TEMOIN=1
  * ==========================================================================*/
 #ifndef PARTIE_TP
-#define PARTIE_TP   4
+#define PARTIE_TP   5
 #endif
 
 /* ---------------------------------------------------------------------------
