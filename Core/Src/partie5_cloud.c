@@ -27,6 +27,7 @@
 #include "cloud_thingspeak.h"
 #include "config_cloud.h"
 #include "serveur_web.h"
+#include "ethernetif.h"
 
 #include "FreeRTOS.h"
 #include "task.h"
@@ -174,7 +175,14 @@ static void tache_application(void *argument)
     format_float(entrees[2], texte, sizeof(texte));
     printf("  P=%s", texte);
     format_float(etat.duree_edge_us, texte, sizeof(texte));
-    printf("  Edge: %-22s %s us\r\n", ia_noms_classes[classe_edge], texte);
+    printf("  Edge: %-22s %s us", ia_noms_classes[classe_edge], texte);
+
+    /* Sante du pool de reception zero-copie. Si "libres" tombe a 0 et que
+       "penurie" passe a 1, la carte ne recoit plus rien : le DMA n'a plus de
+       buffer et aucun n'est rendu. */
+    printf("  | RX libres %u%s\r\n",
+           ethernetif_buffers_rx_libres(),
+           ethernetif_penurie_rx() ? " PENURIE" : "");
 
     /* --- 3. Cloud : LED BLEUE ------------------------------------------
        Espace dans le temps : le compte ThingSpeak gratuit refuse les

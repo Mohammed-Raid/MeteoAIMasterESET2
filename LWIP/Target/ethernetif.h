@@ -13,4 +13,11 @@
 err_t ethernetif_init(struct netif *netif);
 void  ethernet_link_thread(void *argument);
 
+/* Diagnostic : nombre de buffers du pool de reception zero-copie encore
+   disponibles, et drapeau de penurie. Si le drapeau reste a 1 et que le
+   compte tombe a 0, la reception est bloquee : le DMA n'a plus de buffer
+   libre et aucun n'est rendu. */
+unsigned ethernetif_buffers_rx_libres(void);
+unsigned ethernetif_penurie_rx(void);
+
 #endif /* ETHERNETIF_H */

@@ -38,7 +38,9 @@
 #define IFNAME0                     's'
 #define IFNAME1                     't'
 #define ETH_RX_BUFFER_SIZE          1536U    /* = heth1.Init.RxBuffLen      */
-#define ETH_RX_BUFFER_CNT           16U      /* buffers de reception        */
+#define ETH_RX_BUFFER_CNT           32U      /* buffers de reception. 16 se sont
+                                               reveles trop peu sur un reseau
+                                               /16 charge en diffusions.    */
 #define ETH_TX_TIMEOUT_MS           2000U
 #define TACHE_ETHIF_PILE_MOTS       1024U    /* cf. sujet : 1024 a 2048     */
 #define TACHE_ETHIF_PRIORITE        (configMAX_PRIORITIES - 1)
@@ -55,6 +57,9 @@ LWIP_MEMPOOL_DECLARE(RX_POOL, ETH_RX_BUFFER_CNT, sizeof(RxBuff_t), "RX pool zero
 #define RX_ALLOC_OK      0
 #define RX_ALLOC_ERREUR  1
 static volatile uint8_t etat_allocation_rx = RX_ALLOC_OK;
+
+/* Diagnostic : buffers du pool actuellement detenus par lwIP */
+static volatile unsigned rx_alloues = 0;
 
 /* ---- Descripteurs DMA (2 canaux en reception et en emission sur le N6) ----*/
 ETH_DMADescTypeDef DMARxDscrTab[ETH_DMA_RX_CH_CNT][ETH_RX_DESC_CNT] __attribute__((aligned(32)));
@@ -298,12 +303,30 @@ static void pbuf_free_custom(struct pbuf *p)
 
   LWIP_MEMPOOL_FREE(RX_POOL, custom_pbuf);
 
+  if (rx_alloues > 0u)
+  {
+    rx_alloues--;
+  }
+
   /* Si le DMA manquait de buffers, on relance la lecture */
   if (etat_allocation_rx == RX_ALLOC_ERREUR)
   {
     etat_allocation_rx = RX_ALLOC_OK;
     xSemaphoreGive(semaphore_rx);
   }
+}
+
+/* ============================================================================
+ *  Diagnostic du pool de reception
+ * ==========================================================================*/
+unsigned ethernetif_buffers_rx_libres(void)
+{
+  return (unsigned)ETH_RX_BUFFER_CNT - rx_alloues;
+}
+
+unsigned ethernetif_penurie_rx(void)
+{
+  return (etat_allocation_rx == RX_ALLOC_ERREUR) ? 1u : 0u;
 }
 
 /* ============================================================================
@@ -317,6 +340,7 @@ void HAL_ETH_RxAllocateCallback(uint8_t **buff)
 
   if (p != NULL)
   {
+    rx_alloues++;
     *buff = (uint8_t *)p + offsetof(RxBuff_t, buff);
     p->custom_free_function = pbuf_free_custom;
     pbuf_alloced_custom(PBUF_RAW, 0, PBUF_REF, p, *buff, ETH_RX_BUFFER_SIZE);
