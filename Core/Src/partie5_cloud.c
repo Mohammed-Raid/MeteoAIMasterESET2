@@ -19,18 +19,26 @@
   ******************************************************************************
   */
 #include "main.h"
+#include "format.h"
 #include "capteurs.h"
 #include "modele_ia.h"
 #include "baseline_arbre.h"
 #include "reseau.h"
 #include "cloud_thingspeak.h"
 #include "config_cloud.h"
+#include "serveur_web.h"
 
 #include "FreeRTOS.h"
 #include "task.h"
 
 #define PILE_TACHE_APP       4096   /* en mots : sockets + DNS + capteurs */
 #define PRIORITE_TACHE_APP   2
+
+/* La boucle locale est rapide, pour que le tableau de bord reste vivant.
+   Les echanges avec ThingSpeak, eux, sont espaces : le compte gratuit
+   refuse les ecritures separees de moins de 15 secondes. */
+#define PERIODE_LOCALE_MS    2000
+#define CYCLES_PAR_ENVOI     (THINGSPEAK_PERIODE_MIN_MS / PERIODE_LOCALE_MS)
 
 /* ============================================================================
  *  Outils
@@ -47,40 +55,23 @@ static float cycles_vers_us(uint32_t cycles)
   return (float)cycles * 1000000.0f / (float)SystemCoreClock;
 }
 
-static void float_vers_texte(float valeur, char *texte, int taille)
-{
-  int32_t centiemes;
-  char signe = ' ';
-
-  if (valeur >= 0.0f)
-  {
-    centiemes = (int32_t)(valeur * 100.0f + 0.5f);
-  }
-  else
-  {
-    centiemes = (int32_t)(valeur * 100.0f - 0.5f);
-  }
-
-  if (centiemes < 0)
-  {
-    signe = '-';
-    centiemes = -centiemes;
-  }
-
-  snprintf(texte, taille, "%c%ld.%02ld", signe,
-           (long)(centiemes / 100), (long)(centiemes % 100));
-}
 
 /* ============================================================================
  *  Tache applicative
  * ==========================================================================*/
 static void tache_application(void *argument)
 {
-  static mesures_t mesures;      /* static : trop gros pour la pile d'une tache */
-  static char talkback[64];
+  /* static : ces structures pesent plusieurs centaines d'octets, trop pour
+     la pile d'une tache FreeRTOS. Une seule tache les utilise. */
+  static mesures_t mesures;
+  static etat_systeme_t etat;
+  /* Meme taille que le champ du tableau de bord : lire plus que ce qu'on
+     peut stocker n'aurait aucun sens. */
+  static char talkback[TAILLE_LIBELLE_CLOUD];
 
   float entrees[IA_NB_ENTREES];
   char texte[16];
+  uint32_t compteur = 0;
   int classe_edge;
   int classe_arbre;
   uint32_t cycles_edge;
@@ -112,6 +103,8 @@ static void tache_application(void *argument)
   reseau_init();
   reseau_attendre_adresse_ip();
 
+  etat.cloud_configure = (uint8_t)cloud_est_configure();
+
   if (!cloud_est_configure())
   {
     printf("\r\n*** ThingSpeak non configure ***\r\n");
@@ -120,35 +113,41 @@ static void tache_application(void *argument)
     printf("La partie Cloud sera ignoree, l'inference locale continue.\r\n\r\n");
   }
 
+  /* Tableau de bord : la page est servie meme sans acces Internet */
+  if (serveur_web_demarrer() != 0)
+  {
+    printf("Serveur web : demarrage impossible\r\n");
+  }
+
   while (1)
   {
+    int cycle_cloud = ((compteur % CYCLES_PAR_ENVOI) == 0u);
+
+    compteur++;
+
     /* --- 1. Acquisition : LED ROUGE ------------------------------------*/
     leds_eteindre_tout();
     led_allumer(COULEUR_ROUGE);
-    printf("<Lecture Interface Capteurs>\r\n");
     capteurs_lire(&mesures);
+    etat.mesures = mesures;
 
     if (!mesures.sht40_temp_c.valide ||
         !mesures.sht40_humidite_rh.valide ||
         !mesures.df_pression_hpa.valide)
     {
       printf("  Capteurs incomplets, cycle ignore\r\n");
+      etat.classe_edge = NULL;
+      etat.classe_arbre = NULL;
+      serveur_web_publier(&etat);
       leds_eteindre_tout();
       led_allumer(COULEUR_VERTE);
-      vTaskDelay(pdMS_TO_TICKS(THINGSPEAK_PERIODE_MIN_MS));
+      vTaskDelay(pdMS_TO_TICKS(PERIODE_LOCALE_MS));
       continue;
     }
 
     entrees[0] = mesures.sht40_temp_c.valeur;
     entrees[1] = mesures.sht40_humidite_rh.valeur;
     entrees[2] = mesures.df_pression_hpa.valeur;
-
-    float_vers_texte(entrees[0], texte, sizeof(texte));
-    printf("  T=%s degC", texte);
-    float_vers_texte(entrees[1], texte, sizeof(texte));
-    printf("  RH=%s %%", texte);
-    float_vers_texte(entrees[2], texte, sizeof(texte));
-    printf("  P=%s hPa\r\n", texte);
 
     /* --- 2. Inference embarquee ----------------------------------------*/
     {
@@ -158,75 +157,91 @@ static void tache_application(void *argument)
     }
     classe_arbre = arbre_predire(entrees);
 
-    /* --- 3. Cloud : LED BLEUE ------------------------------------------*/
-    leds_eteindre_tout();
-    led_allumer(COULEUR_BLEUE);
-    printf("<Communication Reseau>\r\n");
-
-    latence_envoi_ms = 0;
-    latence_talkback_ms = 0;
-    talkback[0] = '\0';
-
-    code = cloud_envoyer_mesures(&mesures, classe_edge, &latence_envoi_ms);
-    if (code == CLOUD_OK)
+    etat.classe_edge = ia_noms_classes[classe_edge];
+    etat.cycles_edge = cycles_edge;
+    etat.duree_edge_us = cycles_vers_us(cycles_edge);
+    etat.classe_arbre = arbre_noms_classes[classe_arbre];
+    etat.nb_cycles++;
+    if (classe_edge == classe_arbre)
     {
-      printf("  envoi ThingSpeak : ok en %lu ms\r\n",
-             (unsigned long)latence_envoi_ms);
+      etat.nb_accords_arbre++;
+    }
 
-      code = cloud_lire_talkback(talkback, sizeof(talkback), &latence_talkback_ms);
+    format_float(entrees[0], texte, sizeof(texte));
+    printf("T=%s", texte);
+    format_float(entrees[1], texte, sizeof(texte));
+    printf("  RH=%s", texte);
+    format_float(entrees[2], texte, sizeof(texte));
+    format_float(etat.duree_edge_us, texte, sizeof(texte));
+    printf("  Edge: %-22s %s us\r\n", ia_noms_classes[classe_edge], texte);
+
+    /* --- 3. Cloud : LED BLEUE ------------------------------------------
+       Espace dans le temps : le compte ThingSpeak gratuit refuse les
+       ecritures separees de moins de 15 secondes. La boucle locale, elle,
+       reste rapide pour que le tableau de bord soit vivant. */
+    if (cycle_cloud)
+    {
+      leds_eteindre_tout();
+      led_allumer(COULEUR_BLEUE);
+      printf("<Communication Reseau>\r\n");
+
+      latence_envoi_ms = 0;
+      latence_talkback_ms = 0;
+      talkback[0] = '\0';
+      etat.cloud_joignable = 0;
+
+      code = cloud_envoyer_mesures(&mesures, classe_edge, &latence_envoi_ms);
       if (code == CLOUD_OK)
       {
-        if (talkback[0] != '\0')
+        printf("  envoi ThingSpeak : ok en %lu ms\r\n",
+               (unsigned long)latence_envoi_ms);
+
+        code = cloud_lire_talkback(talkback, sizeof(talkback),
+                                   &latence_talkback_ms);
+        if (code == CLOUD_OK)
         {
-          printf("  verdict Cloud    : %s (Talkback en %lu ms)\r\n",
-                 talkback, (unsigned long)latence_talkback_ms);
+          etat.cloud_joignable = 1;
+          etat.latence_cloud_ms = latence_envoi_ms + latence_talkback_ms;
+          snprintf(etat.classe_cloud, sizeof(etat.classe_cloud), "%s",
+                   (talkback[0] != '\0') ? talkback : "en attente");
+
+          printf("  verdict Cloud    : %s (aller-retour %lu ms)\r\n",
+                 etat.classe_cloud, (unsigned long)etat.latence_cloud_ms);
         }
         else
         {
-          printf("  Talkback vide    : le Cloud n'a pas encore repondu "
-                 "(%lu ms)\r\n", (unsigned long)latence_talkback_ms);
+          printf("  Talkback         : %s\r\n", cloud_message_erreur(code));
         }
       }
       else
       {
-        printf("  Talkback         : %s\r\n", cloud_message_erreur(code));
+        printf("  envoi ThingSpeak : %s\r\n", cloud_message_erreur(code));
       }
-    }
-    else
-    {
-      printf("  envoi ThingSpeak : %s\r\n", cloud_message_erreur(code));
-    }
 
-    /* --- 4. La comparaison, qui est l'objet du TP3 §3.c ----------------*/
-    printf("<Comparaison Cloud / Edge>\r\n");
+      /* --- 4. La comparaison, objet du TP3 §3.c ------------------------*/
+      printf("<Comparaison Cloud / Edge>\r\n");
 
-    float_vers_texte(cycles_vers_us(cycles_edge), texte, sizeof(texte));
-    printf("  Edge   : %-22s %s us (%lu cycles)\r\n",
-           ia_noms_classes[classe_edge], texte, (unsigned long)cycles_edge);
+      format_float(etat.duree_edge_us, texte, sizeof(texte));
+      printf("  Edge   : %-22s %s us (%lu cycles)\r\n",
+             ia_noms_classes[classe_edge], texte, (unsigned long)cycles_edge);
+      printf("  Arbre  : %-22s (reference deterministe)\r\n",
+             arbre_noms_classes[classe_arbre]);
 
-    printf("  Arbre  : %-22s (reference deterministe)\r\n",
-           arbre_noms_classes[classe_arbre]);
-
-    if (latence_envoi_ms > 0u)
-    {
-      uint32_t total_ms = latence_envoi_ms + latence_talkback_ms;
-      uint32_t edge_us = (uint32_t)cycles_vers_us(cycles_edge);
-
-      printf("  Cloud  : %-22s %lu ms (aller-retour complet)\r\n",
-             (talkback[0] != '\0') ? talkback : "en attente",
-             (unsigned long)total_ms);
-
-      if (edge_us > 0u)
+      if (etat.cloud_joignable && (etat.duree_edge_us > 0.0f))
       {
+        printf("  Cloud  : %-22s %lu ms\r\n", etat.classe_cloud,
+               (unsigned long)etat.latence_cloud_ms);
         printf("  -> le Cloud est %lu fois plus lent que l'inference locale\r\n",
-               (unsigned long)((total_ms * 1000u) / edge_us));
+               (unsigned long)((float)etat.latence_cloud_ms * 1000.0f
+                               / etat.duree_edge_us));
       }
     }
 
-    /* --- 5. Attente : LED VERTE ----------------------------------------*/
+    /* --- 5. Publication et attente : LED VERTE -------------------------*/
+    serveur_web_publier(&etat);
     leds_eteindre_tout();
     led_allumer(COULEUR_VERTE);
-    vTaskDelay(pdMS_TO_TICKS(THINGSPEAK_PERIODE_MIN_MS));
+    vTaskDelay(pdMS_TO_TICKS(PERIODE_LOCALE_MS));
   }
 }
 

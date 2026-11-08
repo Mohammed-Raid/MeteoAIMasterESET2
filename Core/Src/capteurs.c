@@ -41,6 +41,7 @@
   ******************************************************************************
   */
 #include "main.h"
+#include "format.h"
 #include "capteurs.h"
 #include <string.h>
 
@@ -170,31 +171,6 @@ static int32_t sht40_mesurer(float *temperature_c, float *humidite_rh)
  *  3. OUTILS D'AFFICHAGE
  * ==========================================================================*/
 
-/* Convertit un float en texte avec 2 decimales, sans utiliser printf("%f")
-   (evite l'option _printf_float et les allocations memoire de newlib) */
-static void float_vers_texte(float valeur, char *texte, int taille)
-{
-  int32_t centiemes;
-  char signe = ' ';
-
-  if (valeur >= 0.0f)
-  {
-    centiemes = (int32_t)(valeur * 100.0f + 0.5f);
-  }
-  else
-  {
-    centiemes = (int32_t)(valeur * 100.0f - 0.5f);
-  }
-
-  if (centiemes < 0)
-  {
-    signe = '-';
-    centiemes = -centiemes;
-  }
-
-  snprintf(texte, taille, "%c%ld.%02ld", signe,
-           (long)(centiemes / 100), (long)(centiemes % 100));
-}
 
 static void afficher_xyz(const char *nom, const mesure_xyz_t *m, const char *unite)
 {
@@ -208,9 +184,9 @@ static void afficher_xyz(const char *nom, const mesure_xyz_t *m, const char *uni
     return;
   }
 
-  float_vers_texte(m->x, tx, sizeof(tx));
-  float_vers_texte(m->y, ty, sizeof(ty));
-  float_vers_texte(m->z, tz, sizeof(tz));
+  format_float(m->x, tx, sizeof(tx));
+  format_float(m->y, ty, sizeof(ty));
+  format_float(m->z, tz, sizeof(tz));
   printf("  %-28s X=%10s  Y=%10s  Z=%10s %s\r\n", nom, tx, ty, tz, unite);
 }
 
@@ -224,7 +200,7 @@ static void afficher_valeur(const char *nom, const mesure_t *m, const char *unit
     return;
   }
 
-  float_vers_texte(m->valeur, t, sizeof(t));
+  format_float(m->valeur, t, sizeof(t));
   printf("  %-28s %10s %s\r\n", nom, t, unite);
 }
 
@@ -735,7 +711,6 @@ void capteurs_afficher_csv_entete(void)
 static void csv_valeur(const mesure_t *m)
 {
   char t[16];
-  const char *p;
 
   if (!m->valide)
   {
@@ -743,12 +718,9 @@ static void csv_valeur(const mesure_t *m)
     return;
   }
 
-  float_vers_texte(m->valeur, t, sizeof(t));
-
-  /* float_vers_texte aligne les nombres positifs avec une espace de tete :
-     utile a l'affichage console, parasite dans un CSV. */
-  p = (t[0] == ' ') ? t + 1 : t;
-  printf(";%s", p);
+  /* Variante "brute" : pas d'espace d'alignement, qui serait parasite ici. */
+  format_float_brut(m->valeur, t, sizeof(t));
+  printf(";%s", t);
 }
 
 static void csv_xyz(const mesure_xyz_t *m)

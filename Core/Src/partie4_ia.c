@@ -19,6 +19,7 @@
   ******************************************************************************
   */
 #include "main.h"
+#include "format.h"
 #include "capteurs.h"
 #include "modele_ia.h"
 #include "baseline_arbre.h"
@@ -55,29 +56,6 @@ static float cycles_vers_us(uint32_t cycles)
  *  Affichage des flottants sans _printf_float
  *  (meme approche que dans capteurs.c, volontairement locale a ce fichier)
  * ==========================================================================*/
-static void float_vers_texte(float valeur, char *texte, int taille)
-{
-  int32_t centiemes;
-  char signe = ' ';
-
-  if (valeur >= 0.0f)
-  {
-    centiemes = (int32_t)(valeur * 100.0f + 0.5f);
-  }
-  else
-  {
-    centiemes = (int32_t)(valeur * 100.0f - 0.5f);
-  }
-
-  if (centiemes < 0)
-  {
-    signe = '-';
-    centiemes = -centiemes;
-  }
-
-  snprintf(texte, taille, "%c%ld.%02ld", signe,
-           (long)(centiemes / 100), (long)(centiemes % 100));
-}
 
 /* ============================================================================
  *  Boucle principale
@@ -144,11 +122,11 @@ void partie4_lancer(void)
       continue;
     }
 
-    float_vers_texte(entrees[0], texte, sizeof(texte));
+    format_float(entrees[0], texte, sizeof(texte));
     printf("  entrees : T=%s degC", texte);
-    float_vers_texte(entrees[1], texte, sizeof(texte));
+    format_float(entrees[1], texte, sizeof(texte));
     printf("  RH=%s %%", texte);
-    float_vers_texte(entrees[2], texte, sizeof(texte));
+    format_float(entrees[2], texte, sizeof(texte));
     printf("  P=%s hPa\r\n", texte);
 
     /* --- Inference : LED BLEUE -------------------------------------------*/
@@ -172,11 +150,11 @@ void partie4_lancer(void)
 
       for (i = 0; i < IA_NB_CLASSES; i++)
       {
-        float_vers_texte(probabilites[i] * 100.0f, texte, sizeof(texte));
+        format_float(probabilites[i] * 100.0f, texte, sizeof(texte));
         printf("    %-24s %s %%\r\n", ia_noms_classes[i], texte);
       }
 
-      float_vers_texte(cycles_vers_us(cycles), texte, sizeof(texte));
+      format_float(cycles_vers_us(cycles), texte, sizeof(texte));
       printf("    duree : %lu cycles = %s us\r\n", (unsigned long)cycles, texte);
 
       /* --- Reference deterministe -----------------------------------------
@@ -194,7 +172,7 @@ void partie4_lancer(void)
 
         printf("<Reference arbre> classe = %s\r\n",
                arbre_noms_classes[classe_arbre]);
-        float_vers_texte(cycles_vers_us(cycles_arbre), texte, sizeof(texte));
+        format_float(cycles_vers_us(cycles_arbre), texte, sizeof(texte));
         printf("    duree : %lu cycles = %s us\r\n",
                (unsigned long)cycles_arbre, texte);
 

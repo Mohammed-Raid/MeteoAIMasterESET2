@@ -21,7 +21,14 @@ Ne pas annoncer le résultat. Le garder pour 2:00.
 
 ## 0:20 — 0:50 · Le prototype, en marche
 
-Carte branchée, console projetée. Laisser tourner **un seul cycle** à l'écran.
+Carte branchée, **navigateur projeté sur l'adresse IP de la carte** — le
+tableau de bord est servi par le STM32 lui-même, pas par un service externe.
+
+> « Cette page n'est hébergée nulle part. C'est la carte qui la sert. »
+
+**Le geste à faire, vers 2:20** : débrancher le câble réseau en plein pitch.
+La colonne Cloud tombe, la page reste, l'inférence locale continue à 37 µs.
+Rebrancher. C'est la démonstration de la thèse du module en cinq secondes.
 
 > « Sept capteurs MEMS lus en I2C. Température, humidité, pression partent
 > dans un réseau de neurones entraîné sur onze ans de relevés Meteostat,

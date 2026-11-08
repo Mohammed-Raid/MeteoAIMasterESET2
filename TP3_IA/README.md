@@ -66,6 +66,32 @@ Dans l'app **MATLAB Analysis**, lire les trois derniers champs, exécuter le
 réseau importé en ONNX, et pousser le résultat dans la file **Talkback**. La
 carte le récupère au cycle suivant. C'est le §2.b et le §2.d.
 
+### Le tableau de bord embarqué
+
+La partie 5 démarre aussi un **serveur HTTP sur la carte**. On ouvre son
+adresse IP dans un navigateur — elle s'affiche sur la console au démarrage —
+et on obtient une page vivante, rafraîchie chaque seconde :
+
+- les sept capteurs en direct ;
+- le verdict du réseau embarqué, avec sa durée en microsecondes et en cycles ;
+- le verdict de l'arbre déterministe ;
+- le verdict du Cloud, avec sa latence aller-retour en millisecondes ;
+- le compteur d'accords entre le réseau et l'arbre, en pourcentage.
+
+Tout le propos du module tient alors dans un seul écran.
+
+La page n'a **aucune dépendance externe** : ni police, ni bibliothèque, ni
+CDN. Elle est servie entièrement par la carte. Conséquence directe, et c'est
+l'intérêt principal pour la démonstration : **débrancher la liaison Internet
+laisse la page et l'inférence locale intactes, et fait tomber la seule
+colonne Cloud.** La thèse du module se montre au lieu de se raconter.
+
+Implémentation : `Core/Src/serveur_web.c`, environ 20 Ko de Flash. La tâche
+applicative publie un instantané sous mutex, la tâche du serveur le sérialise
+en JSON sur `GET /api/etat`. Le découplage permet de garder une boucle locale
+à 2 secondes pour que la page soit réactive, tout en espaçant les échanges
+ThingSpeak à 16 secondes.
+
 ### Choix techniques assumés
 
 **HTTP et non HTTPS.** LWIP n'embarque pas de pile TLS dans ce projet.

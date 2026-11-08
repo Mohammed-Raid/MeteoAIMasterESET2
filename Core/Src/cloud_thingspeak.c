@@ -14,6 +14,7 @@
   ******************************************************************************
   */
 #include "main.h"
+#include "format.h"
 #include "cloud_thingspeak.h"
 #include "config_cloud.h"
 
@@ -33,39 +34,6 @@ static char reponse[TAILLE_REPONSE];
  *  Outils
  * ==========================================================================*/
 
-/* Formatage d'un flottant sans _printf_float, comme ailleurs dans le projet */
-static void float_vers_texte(float valeur, char *texte, int taille)
-{
-  int32_t centiemes;
-  char signe = ' ';
-
-  if (valeur >= 0.0f)
-  {
-    centiemes = (int32_t)(valeur * 100.0f + 0.5f);
-  }
-  else
-  {
-    centiemes = (int32_t)(valeur * 100.0f - 0.5f);
-  }
-
-  if (centiemes < 0)
-  {
-    signe = '-';
-    centiemes = -centiemes;
-  }
-
-  /* Pas d'espace de tete ici : la valeur part dans une URL */
-  if (signe == '-')
-  {
-    snprintf(texte, taille, "-%ld.%02ld",
-             (long)(centiemes / 100), (long)(centiemes % 100));
-  }
-  else
-  {
-    snprintf(texte, taille, "%ld.%02ld",
-             (long)(centiemes / 100), (long)(centiemes % 100));
-  }
-}
 
 const char *cloud_message_erreur(int code)
 {
@@ -203,9 +171,9 @@ int cloud_envoyer_mesures(const mesures_t *m, int classe_edge,
     return CLOUD_NON_CONFIGURE;
   }
 
-  float_vers_texte(m->sht40_temp_c.valeur, t, sizeof(t));
-  float_vers_texte(m->sht40_humidite_rh.valeur, h, sizeof(h));
-  float_vers_texte(m->df_pression_hpa.valeur, p, sizeof(p));
+  format_float_brut(m->sht40_temp_c.valeur, t, sizeof(t));
+  format_float_brut(m->sht40_humidite_rh.valeur, h, sizeof(h));
+  format_float_brut(m->df_pression_hpa.valeur, p, sizeof(p));
 
   /* field1..field3 : les grandeurs physiques, que MATLAB relira cote Cloud.
      field4 : la classe predite en local, pour pouvoir comparer les deux
