@@ -22,6 +22,7 @@ extern "C" {
  *    2 : lecture des 7 capteurs IKS4A1 par I2C + LEDs etat   (sans RTOS)
  *    3 : FreeRTOS + lwIP (DHCP, ICMP, DNS, sockets BSD) + ping google.com
  *    4 : TP3 - inference du reseau de neurones meteo sur les capteurs reels
+ *    5 : TP3 - comparaison Cloud (ThingSpeak) contre Edge, avec latences
  *  Changer la valeur puis recompiler (ou : make PARTIE=4 en ligne de commande)
  *  Programme temoin du TP3 §3.d : make PARTIE=4 TEMOIN=1
  * ==========================================================================*/
@@ -97,6 +98,7 @@ void partie1_lancer(void);
 void partie2_lancer(void);
 void partie3_lancer(void);
 void partie4_lancer(void);   /* TP3 : IA embarquee */
+void partie5_lancer(void);   /* TP3 : comparaison Cloud / Edge */
 
 #ifdef __cplusplus
 }

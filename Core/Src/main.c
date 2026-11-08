@@ -67,6 +67,10 @@ int main(void)
   {
     partie4_lancer();   /* TP3 : inference du reseau de neurones */
   }
+  else if (PARTIE_TP == 5)
+  {
+    partie5_lancer();   /* TP3 : Cloud contre Edge (ne revient jamais) */
+  }
   else
   {
     partie3_lancer();   /* ne revient jamais : demarre FreeRTOS */

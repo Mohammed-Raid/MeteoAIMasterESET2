@@ -7,7 +7,12 @@
 # Resultat : build/TP2_NUCLEO_N657.elf / .bin / .hex
 ##############################################################################
 TARGET = TP2_NUCLEO_N657
-BUILD_DIR = build
+
+# Chaque configuration a son propre dossier d'objets. Sans cela, changer
+# PARTIE ne declencherait aucune recompilation : les .o ne gardent pas trace
+# des -D, make les croirait a jour, et on obtiendrait silencieusement le
+# binaire de la partie precedente.
+BUILD_DIR = build/partie$(or $(PARTIE),defaut)$(if $(TEMOIN),-temoin,)
 PREFIX = arm-none-eabi-
 CC = $(PREFIX)gcc
 AS = $(PREFIX)gcc -x assembler-with-cpp
@@ -91,7 +96,7 @@ $(BUILD_DIR)/%.hex: $(BUILD_DIR)/%.elf
 	$(CP) -O ihex $< $@
 
 clean:
-	rm -rf $(BUILD_DIR)
+	rm -rf build
 
 -include $(wildcard $(BUILD_DIR)/**/*.d)
 

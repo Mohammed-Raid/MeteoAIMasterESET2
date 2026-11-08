@@ -54,7 +54,7 @@ static uint16_t numero_sequence_ping = 0;
 /* ============================================================================
  *  Initialisation de la pile reseau
  * ==========================================================================*/
-static void reseau_init(void)
+void reseau_init(void)
 {
   ip4_addr_t ip;
   ip4_addr_t masque;
@@ -87,7 +87,7 @@ static void reseau_init(void)
               PRIORITE_TACHE_LIEN, NULL);
 }
 
-static void afficher_configuration_ip(void)
+void reseau_afficher_configuration_ip(void)
 {
   char texte[16];
   const ip_addr_t *dns;
@@ -109,7 +109,7 @@ static void afficher_configuration_ip(void)
 }
 
 /* Attend l'adresse DHCP (LED bleue clignotante). Sans reponse : IP fixe. */
-static void reseau_attendre_adresse_ip(void)
+void reseau_attendre_adresse_ip(void)
 {
   uint32_t temps = 0;
   int adresse_obtenue = 0;
@@ -148,7 +148,7 @@ static void reseau_attendre_adresse_ip(void)
     netif_set_addr(&interface_eth, &ip, &masque, &passerelle);
     UNLOCK_TCPIP_CORE();
   }
-  afficher_configuration_ip();
+  reseau_afficher_configuration_ip();
 }
 
 /* ============================================================================

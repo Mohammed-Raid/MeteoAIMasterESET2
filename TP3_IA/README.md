@@ -13,10 +13,72 @@ et exécution sur la carte NUCLEO-N657X0-Q à partir des capteurs réels.
 | §3.a — ONNX → C | fait **sans X-CUBE-AI** (voir plus bas) | `4_generer_c.py` |
 | §3.b — code C d'inférence | fait | `Core/Src/modele_ia.c` |
 | §3.c — données réelles des capteurs + temps d'exécution | fait | `Core/Src/partie4_ia.c` |
-| §3.c — comparaison avec le Cloud | **à faire** | dépend du §2 (ThingSpeak) |
+| §2.c — envoi des mesures sur ThingSpeak | code fait, **à tester** | `Core/Src/cloud_thingspeak.c` |
+| §2.d — verdict renvoyé par l'API Talkback | code fait, **à tester** | `Core/Src/cloud_thingspeak.c` |
+| §2.a/§2.b — modèle et script MATLAB | **à faire** | dans ThingSpeak, voir plus bas |
+| §3.c — comparaison Cloud / Edge chronométrée | code fait, **à tester** | `Core/Src/partie5_cloud.c` |
 | §3.d — programme témoin | fait | `make PARTIE=4 TEMOIN=1` |
 | §3.d — mesure du courant | **à faire** | manipulation matérielle |
-| §2 — MATLAB / ThingSpeak / Talkback | **non traité** | licence et compte requis |
+
+## Cloud versus Edge — la partie 5
+
+C'est le cœur du TP3 : la même observation est classée deux fois à chaque
+cycle, en local et dans le Cloud, et les deux latences sont affichées côte à
+côte.
+
+```
+make PARTIE=5
+```
+
+### Ce qu'il faut configurer
+
+Créer un compte ThingSpeak — le niveau gratuit suffit : 4 canaux,
+3 millions de messages par an, MATLAB Analysis inclus avec 20 secondes de
+temps de calcul. Se connecter avec une adresse universitaire donne l'accès
+académique complet.
+
+Créer ensuite `Core/Inc/config_cloud_local.h`, **qui est ignoré par Git** :
+
+```c
+#define THINGSPEAK_WRITE_API_KEY   "VOTRE_CLE_ECRITURE"
+#define THINGSPEAK_TALKBACK_ID     "12345"
+#define THINGSPEAK_TALKBACK_KEY    "VOTRE_CLE_TALKBACK"
+```
+
+Sans ce fichier, le projet compile et tourne quand même : la partie Cloud
+s'annonce non configurée et l'inférence locale continue.
+
+### Champs du canal
+
+| Champ | Contenu |
+| --- | --- |
+| field1 | température °C |
+| field2 | humidité %RH |
+| field3 | pression hPa |
+| field4 | indice de la classe prédite en local |
+
+Le champ 4 permet de comparer les deux verdicts directement dans le canal,
+sans recoupement manuel.
+
+### Côté ThingSpeak, ce qui reste à faire
+
+Dans l'app **MATLAB Analysis**, lire les trois derniers champs, exécuter le
+réseau importé en ONNX, et pousser le résultat dans la file **Talkback**. La
+carte le récupère au cycle suivant. C'est le §2.b et le §2.d.
+
+### Choix techniques assumés
+
+**HTTP et non HTTPS.** LWIP n'embarque pas de pile TLS dans ce projet.
+Ajouter mbedTLS coûterait plusieurs dizaines de kilo-octets de RAM pour un
+bénéfice nul dans le cadre du TP, mais **la clé d'API circule en clair**.
+C'est une limite à connaître, pas à cacher.
+
+**Cadence de 16 secondes.** Le compte gratuit refuse les écritures espacées
+de moins de 15 secondes. La boucle de la partie 5 est donc nettement plus
+lente que celle de la partie 4, et c'est voulu.
+
+**Aucune bibliothèque HTTP ajoutée.** Une requête GET tient en quelques
+lignes sur les sockets BSD déjà en place pour la partie 3.
 
 ## Pourquoi pas X-CUBE-AI
 
