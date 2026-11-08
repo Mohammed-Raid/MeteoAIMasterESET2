@@ -41,10 +41,13 @@ static void dwt_demarrer(void)
 }
 
 #if !TEMOIN_SANS_IA
-/* Convertit un nombre de cycles en microsecondes */
-static uint32_t cycles_vers_us(uint32_t cycles)
+/* Convertit un nombre de cycles en microsecondes.
+   Le resultat est un flottant : l'arbre de decision s'execute en moins
+   d'une microseconde, un entier afficherait "0 us" et donnerait l'impression
+   d'une mesure ratee. */
+static float cycles_vers_us(uint32_t cycles)
 {
-  return (uint32_t)((uint64_t)cycles * 1000000u / SystemCoreClock);
+  return (float)cycles * 1000000.0f / (float)SystemCoreClock;
 }
 #endif
 
@@ -173,8 +176,8 @@ void partie4_lancer(void)
         printf("    %-24s %s %%\r\n", ia_noms_classes[i], texte);
       }
 
-      printf("    duree : %lu cycles = %lu us\r\n",
-             (unsigned long)cycles, (unsigned long)cycles_vers_us(cycles));
+      float_vers_texte(cycles_vers_us(cycles), texte, sizeof(texte));
+      printf("    duree : %lu cycles = %s us\r\n", (unsigned long)cycles, texte);
 
       /* --- Reference deterministe -----------------------------------------
          Le polycopie du module (§2.5) pose la question : le reseau apporte-t-il
@@ -191,9 +194,9 @@ void partie4_lancer(void)
 
         printf("<Reference arbre> classe = %s\r\n",
                arbre_noms_classes[classe_arbre]);
-        printf("    duree : %lu cycles = %lu us\r\n",
-               (unsigned long)cycles_arbre,
-               (unsigned long)cycles_vers_us(cycles_arbre));
+        float_vers_texte(cycles_vers_us(cycles_arbre), texte, sizeof(texte));
+        printf("    duree : %lu cycles = %s us\r\n",
+               (unsigned long)cycles_arbre, texte);
 
         if (cycles_arbre > 0u)
         {

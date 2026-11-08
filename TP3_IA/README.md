@@ -231,6 +231,31 @@ sur la carte à côté du réseau, à chaque cycle, avec sa propre mesure de
 cycles. La comparaison n'est donc pas théorique : elle est affichée sur la
 console du prototype.
 
+### Mesure sur la carte
+
+Relevé sur la NUCLEO-N657X0-Q, Cortex-M55 à 600 MHz :
+
+```
+<Inference IA>     classe = Partiellement nuageux   duree : 22358 cycles = 37.26 us
+<Reference arbre>  classe = Partiellement nuageux   duree :   332 cycles =  0.55 us
+    le reseau coute 67 fois plus de cycles
+    accord des deux methodes : oui
+```
+
+| Méthode | Cycles | Durée | Exactitude |
+| --- | --- | --- | --- |
+| Arbre profondeur 5 | **332** | 0,55 µs | 0,4816 |
+| Réseau 3-16-8-4 | **22 358** | 37,26 µs | 0,4847 |
+| Rapport | **× 67** | × 67 | **+0,0031** |
+
+Les deux méthodes prédisent la même classe à chaque cycle sur l'ensemble des
+relevés observés. Le réseau consomme 67 fois plus de cycles — donc, à
+fréquence égale, environ 67 fois plus d'énergie de calcul — pour trois
+millièmes de point d'exactitude obtenus hors ligne.
+
+C'est la réponse mesurée à la question du §2.5 du polycopié, sur le cas que
+celui-ci donnait précisément comme favorable à l'IA.
+
 ## Changer de modèle
 
 Pour brancher un autre modèle, par exemple généré avec X-CUBE-AI, voir

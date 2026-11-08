@@ -51,14 +51,18 @@ Montrer la ligne `Autotest du modele : OK`.
 
 Afficher le tableau :
 
-| Méthode | Exactitude | Coût par inférence |
+| Méthode | Exactitude | Mesuré sur la carte |
 | --- | --- | --- |
-| Arbre de décision, profondeur 5 | 0,4816 | **5 comparaisons** |
-| Réseau de neurones 3-16-8-4 | 0,4847 | **208 MAC + 4 exponentielles** |
+| Arbre de décision, profondeur 5 | 0,4816 | **332 cycles — 0,55 µs** |
+| Réseau de neurones 3-16-8-4 | 0,4847 | **22 358 cycles — 37,26 µs** |
 
 > « Le réseau gagne trois millièmes d'exactitude. Trois millièmes. Pour
-> quarante fois plus d'opérations. Sur ce problème, l'IA ne se justifie pas —
-> et le cours affirmait l'inverse. »
+> **soixante-sept fois plus de cycles**, mesurés sur la carte, pas estimés.
+> Et sur tous les relevés observés, les deux méthodes prédisent la même
+> classe. Sur ce problème, l'IA ne se justifie pas — et le cours affirmait
+> l'inverse. »
+
+Pointer la ligne `accord des deux methodes : oui` sur la console en direct.
 
 > « Mieux : l'arbre est lisible. “Si l'humidité dépasse 86 %, alors
 > précipitations.” Un humain comprend la décision. Le réseau, lui, est 236
