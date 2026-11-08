@@ -92,6 +92,33 @@ en JSON sur `GET /api/etat`. Le découplage permet de garder une boucle locale
 à 2 secondes pour que la page soit réactive, tout en espaçant les échanges
 ThingSpeak à 16 secondes.
 
+### Diagnostic réseau en salle — ce qui marche et ce qui ne marche pas
+
+Relevé sur le réseau de l'établissement, carte en 10.188.105.19 /16 :
+
+| Test | Résultat | Interprétation |
+| --- | --- | --- |
+| DHCP | ✅ adresse obtenue | la réception fonctionne |
+| DNS (`google.com` → 142.251.209.142) | ✅ résolu | émission **et** réception correctes |
+| Ping sortant vers google.com | ❌ délai dépassé | ICMP filtré par le pare-feu |
+| Ping du PC vers la carte | ❌ pas de réponse ARP | segments L2 différents |
+
+La pile réseau de la carte est donc **saine** : DHCP et DNS exigent tous deux
+de recevoir des réponses. Les deux échecs relèvent de la politique du réseau,
+pas du code.
+
+Conséquences pratiques :
+
+- **ThingSpeak devrait fonctionner** : c'est du TCP sortant sur le port 80,
+  exactement ce que ce type de réseau autorise.
+- **Le tableau de bord est inaccessible depuis un PC du même réseau**, car la
+  requête ARP n'atteint jamais le segment de la carte. Pour le montrer, il
+  faut un segment commun : câble direct PC–carte, ou un petit switch.
+
+Avec un câble direct, la carte ne trouve pas de serveur DHCP et bascule après
+20 secondes sur **192.168.1.50** (voir `IP_SECOURS_*` dans `main.h`). Donner
+au PC une adresse fixe en 192.168.1.10/24 suffit alors à ouvrir la page.
+
 ### Choix techniques assumés
 
 **HTTP et non HTTPS.** LWIP n'embarque pas de pile TLS dans ce projet.
