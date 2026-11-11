@@ -99,6 +99,10 @@ def main() -> None:
     X_tr, X_te, y_te, meta = jeu_de_test()
     print(f"Jeu de test : {len(X_te)} releves\n")
 
+    # Le convertisseur TFLite part d'un SavedModel, exporte ici depuis le
+    # modele Keras entraine.
+    tf.keras.models.load_model(DOSSIER / "modele_meteo.keras").export(str(SAVED_MODEL))
+
     convertisseur_base = lambda: tf.lite.TFLiteConverter.from_saved_model(str(SAVED_MODEL))
 
     # --- float32 ----------------------------------------------------------

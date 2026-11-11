@@ -9,7 +9,9 @@
   *         la solution Cloud.
   *  §3.d : un programme temoin, qui execute exactement les memes etapes SANS
   *         l'inference, permet d'isoler la consommation du reseau. Il
-  *         s'obtient en compilant avec -DTEMOIN_SANS_IA=1.
+  *         s'obtient en compilant avec -DTEMOIN_SANS_IA=1. Pour la mesure
+  *         du courant elle-meme, -DMESURE_CONSO=1 coupe les LEDs et la
+  *         console et enchaine les classifications (voir plus bas).
   *
   *  Entrees du modele : temperature et humidite du SHT40AD1B, pression du
   *  LPS22DF. Le SHT40 fournit les deux premieres, ce qui evite de melanger
@@ -29,6 +31,12 @@
 /* TP3 §3.d : programme temoin, identique mais sans l'appel au reseau */
 #ifndef TEMOIN_SANS_IA
 #define TEMOIN_SANS_IA   0
+#endif
+
+/* TP3 §3.d : configuration de mesure du courant (LEDs et console coupees,
+   classifications enchainees). A combiner ou non avec TEMOIN_SANS_IA. */
+#ifndef MESURE_CONSO
+#define MESURE_CONSO     0
 #endif
 
 /* ============================================================================
@@ -52,10 +60,86 @@ static float cycles_vers_us(uint32_t cycles)
 }
 #endif
 
+#if MESURE_CONSO
 /* ============================================================================
- *  Affichage des flottants sans _printf_float
- *  (meme approche que dans capteurs.c, volontairement locale a ce fichier)
+ *  TP3 §3.d : boucle dediee a la mesure du courant d'alimentation
+ *
+ *  Le sujet demande de desactiver les GPIO et tout composant non essentiel,
+ *  puis de comparer le programme avec le reseau a un programme temoin qui
+ *  fait toutes les etapes sauf l'execution du modele.
+ *
+ *  Dans la boucle normale, une classification dure 37 us toutes les 2 s :
+ *  son effet sur le courant moyen est invisible a l'amperemetre. Ici, apres
+ *  chaque lecture des capteurs, la fenetre de mesure est donc remplie :
+ *    - programme avec IA : de classifications enchainees sans interruption ;
+ *    - programme temoin  : de rien, le coeur dort (WFI) jusqu'a la fin.
+ *  La difference de courant entre les deux programmes est alors celle d'une
+ *  classification en continu, et l'energie d'UNE classification vaut :
+ *
+ *      E = (I_ia - I_temoin) x V_dd x FENETRE / nombre_de_classifications
+ *
+ *  Le nombre de classifications par fenetre est affiche une seule fois au
+ *  demarrage, puis la console se tait : l'UART fait partie des composants
+ *  non essentiels pendant la mesure.
  * ==========================================================================*/
+#define FENETRE_MESURE_MS   1000u
+
+static void boucle_mesure_consommation(void)
+{
+  mesures_t mesures;
+  float entrees[IA_NB_ENTREES];
+  uint32_t debut;
+#if !TEMOIN_SANS_IA
+  uint32_t classifications;
+  int premiere_fenetre = 1;
+#endif
+
+  /* GPIO des LEDs au repos pour toute la duree de la mesure */
+  leds_eteindre_tout();
+
+  printf("MODE MESURE DE CONSOMMATION (TP3 §3.d)\r\n");
+  printf("  LEDs eteintes, console muette, fenetre de %u ms\r\n",
+         (unsigned)FENETRE_MESURE_MS);
+#if TEMOIN_SANS_IA
+  printf("  programme TEMOIN : aucune classification, coeur en sommeil\r\n");
+#else
+  printf("  programme AVEC IA : classifications enchainees\r\n");
+#endif
+
+  while (1)
+  {
+    /* Etape commune aux deux programmes : acquisition des capteurs */
+    capteurs_lire(&mesures);
+    entrees[0] = mesures.sht40_temp_c.valeur;
+    entrees[1] = mesures.sht40_humidite_rh.valeur;
+    entrees[2] = mesures.df_pression_hpa.valeur;
+
+    debut = HAL_GetTick();
+
+#if TEMOIN_SANS_IA
+    (void)entrees;
+    while ((HAL_GetTick() - debut) < FENETRE_MESURE_MS)
+    {
+      __WFI();   /* reveille chaque milliseconde par la base de temps */
+    }
+#else
+    classifications = 0;
+    while ((HAL_GetTick() - debut) < FENETRE_MESURE_MS)
+    {
+      (void)ia_predire(entrees, NULL);
+      classifications++;
+    }
+
+    if (premiere_fenetre)
+    {
+      premiere_fenetre = 0;
+      printf("  %lu classifications par fenetre\r\n",
+             (unsigned long)classifications);
+    }
+#endif
+  }
+}
+#endif /* MESURE_CONSO */
 
 /* ============================================================================
  *  Boucle principale
@@ -73,6 +157,10 @@ void partie4_lancer(void)
   leds_eteindre_tout();
   led_allumer(COULEUR_ROUGE);
   capteurs_init();
+
+#if MESURE_CONSO
+  boucle_mesure_consommation();   /* ne revient jamais */
+#endif
 
 #if TEMOIN_SANS_IA
   /* L'autotest execute lui aussi le reseau : on ne le lance pas en mode

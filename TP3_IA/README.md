@@ -5,20 +5,31 @@ et exécution sur la carte NUCLEO-N657X0-Q à partir des capteurs réels.
 
 ## Ce qui est couvert
 
+Trois niveaux, pour ne rien laisser croire : **validé** = exécuté et vérifié,
+**écrit** = code présent mais jamais exécuté faute de compte ou de matériel,
+**à faire** = absent.
+
 | Point du sujet | État | Où |
 | --- | --- | --- |
-| §1.a — modèle entraîné en Python/TensorFlow sur Meteostat | fait | `2_entrainement.py` |
-| §1.b — compromis classes / taille / exactitude | fait | `comparaison.csv` |
-| §3.a — TensorFlow → ONNX | fait et vérifié | `3_export_onnx.py` |
-| §3.a — ONNX → C | fait **sans X-CUBE-AI** (voir plus bas) | `4_generer_c.py` |
-| §3.b — code C d'inférence | fait | `Core/Src/modele_ia.c` |
-| §3.c — données réelles des capteurs + temps d'exécution | fait | `Core/Src/partie4_ia.c` |
-| §2.c — envoi des mesures sur ThingSpeak | code fait, **à tester** | `Core/Src/cloud_thingspeak.c` |
-| §2.d — verdict renvoyé par l'API Talkback | code fait, **à tester** | `Core/Src/cloud_thingspeak.c` |
-| §2.a/§2.b — modèle et script MATLAB | **à faire** | dans ThingSpeak, voir plus bas |
-| §3.c — comparaison Cloud / Edge chronométrée | code fait, **à tester** | `Core/Src/partie5_cloud.c` |
-| §3.d — programme témoin | fait | `make PARTIE=4 TEMOIN=1` |
-| §3.d — mesure du courant | **à faire** | manipulation matérielle |
+| §1.a — modèle entraîné en Python/TensorFlow sur Meteostat | validé | `2_entrainement.py` |
+| §1.b — compromis classes / taille / exactitude, hyperparamètres justifiés | validé | `comparaison.csv`, plus bas |
+| §2.a — TensorFlow → ONNX | validé, écart 1,2e-07 | `3_export_onnx.py` |
+| §2.a — ONNX → MATLAB | **écrit**, jamais exécuté | `matlab/inference_meteo.m` |
+| §2.b — script MATLAB d'inférence | **écrit**, jamais exécuté | `matlab/inference_meteo.m` |
+| §2.c — mesures de la carte envoyées sur ThingSpeak | **écrit**, jamais exécuté | `Core/Src/cloud_thingspeak.c` |
+| §2.c — classification sauvegardée sur un canal spécifique | **écrit**, jamais exécuté | `matlab/thingspeak_classification.m` |
+| §2.d — résultat renvoyé à la carte par l'API Talkback | **écrit**, jamais exécuté | les deux fichiers ci-dessus |
+| §3.a — TensorFlow → ONNX → C | validé, **mais sans X-CUBE-AI** | `4_generer_c.py`, voir plus bas |
+| §3.b — code C d'inférence | validé sur la carte | `Core/Src/modele_ia.c` |
+| §3.c — inférence sur les capteurs réels, temps d'exécution | validé sur la carte, 37 µs | `Core/Src/partie4_ia.c` |
+| §3.c — comparaison avec le Cloud (exactitude, temps) | **écrit**, dépend du §2 | `Core/Src/partie5_cloud.c` |
+| §3.d — GPIO et composants non essentiels désactivés | **écrit**, jamais exécuté | `make PARTIE=4 CONSO=1` |
+| §3.d — programme témoin sans le modèle | compilé, jamais mesuré | `make PARTIE=4 CONSO=1 TEMOIN=1` |
+| §3.d — mesure du courant au jumper | **à faire** | manipulation, avec l'encadrant |
+
+Hors sujet, ajoutés en plus et clairement séparés : l'arbre de décision de
+référence (`6_baseline.py`), l'étude de quantification (`5_quantification.py`)
+et le tableau de bord web (`Core/Src/serveur_web.c`).
 
 ## Cloud versus Edge — la partie 5
 
@@ -60,11 +71,40 @@ s'annonce non configurée et l'inférence locale continue.
 Le champ 4 permet de comparer les deux verdicts directement dans le canal,
 sans recoupement manuel.
 
-### Côté ThingSpeak, ce qui reste à faire
+### Côté MATLAB — §2.a à §2.d
 
-Dans l'app **MATLAB Analysis**, lire les trois derniers champs, exécuter le
-réseau importé en ONNX, et pousser le résultat dans la file **Talkback**. La
-carte le récupère au cycle suivant. C'est le §2.b et le §2.d.
+Deux scripts, calqués sur l'exemple MNIST du sujet (`importONNXNetwork`,
+`predict`, `max`) :
+
+- [`matlab/inference_meteo.m`](matlab/inference_meteo.m) — §2.a et §2.b :
+  charge `modele_meteo.onnx` et classe une observation. Il contient une
+  valeur de référence : pour 24,30 °C / 41,10 %RH / 996,84 hPa, MATLAB doit
+  trouver « Partiellement nuageux » à 39,56 %, comme `onnxruntime` et la
+  carte. Sinon, la normalisation est à vérifier.
+- [`matlab/thingspeak_classification.m`](matlab/thingspeak_classification.m)
+  — §2.c et §2.d : à coller dans **MATLAB Analysis** sur ThingSpeak. Il lit la
+  dernière entrée du canal de mesures, la classe, écrit le résultat sur un
+  **canal de résultats** distinct, puis dépose le libellé dans la file
+  **Talkback**, où la carte vient le lire au cycle suivant.
+
+Le canal de résultats porte la comparaison du §3.c sur la même observation :
+
+| Champ | Contenu |
+| --- | --- |
+| field1 | indice de la classe prédite par le Cloud |
+| field2 | confiance en % |
+| field3 | temps d'exécution de l'inférence Cloud en ms |
+| field4 | accord avec la classe prédite par la carte (1 ou 0) |
+
+**Ces deux scripts n'ont jamais été exécutés** : il n'y a pas de MATLAB sur
+la machine de développement. Deux points à vérifier à la première exécution :
+que `importONNXNetwork` est disponible dans MATLAB Analysis (il dépend du
+module « Converter for ONNX Model Format »), et le lien `urlModele`, qui doit
+pointer vers le fichier brut du dépôt GitHub.
+
+Pour déclencher le script à chaque mesure, créer une application **React**
+sur le canal de mesures. Un **TimeControl** convient aussi, mais il est limité
+à une exécution toutes les 5 minutes sur un compte gratuit.
 
 ### Le tableau de bord embarqué
 
@@ -378,18 +418,47 @@ Pour brancher un autre modèle, par exemple généré avec X-CUBE-AI, voir
 
 ## §3.d — mesure de consommation
 
-Deux binaires strictement identiques, à l'exécution du réseau près :
+Le sujet demande trois choses : désactiver les GPIO et tout composant non
+essentiel, préparer un programme témoin qui fait toutes les étapes sauf
+l'exécution du modèle, et mesurer le courant des deux.
 
 ```
-make PARTIE=4             -> binaires/TP3_partie4_avec_IA.bin   (47 456 o)
-make PARTIE=4 TEMOIN=1    -> binaires/TP3_partie4_temoin.bin    (44 576 o)
+make PARTIE=4 CONSO=1            -> binaires/partie4_conso_avec_IA.bin
+make PARTIE=4 CONSO=1 TEMOIN=1   -> binaires/partie4_conso_temoin.bin
 ```
 
-En mode témoin, l'autotest de démarrage est également désactivé, puisqu'il
-exécute lui aussi le réseau : le programme témoin est donc réellement exempt
-de toute inférence.
+Sous STM32CubeIDE, définir `MESURE_CONSO=1` (et `TEMOIN_SANS_IA=1` pour le
+témoin) dans les symboles du préprocesseur du projet.
 
-Mesurer le courant au jumper d'alimentation pour chacun des deux programmes ;
-la différence est imputable à l'inférence. **Lire la documentation de la carte
-et valider la manipulation avec l'encadrant avant de la réaliser**, comme le
-rappelle le sujet.
+Ce que change `CONSO=1` :
+
+- **LEDs éteintes** pendant toute la mesure, et **console muette** après
+  quelques lignes de démarrage : GPIO et UART sont les composants non
+  essentiels que le sujet demande de couper.
+- **Fenêtre de mesure d'une seconde** après chaque lecture des capteurs. Dans
+  la boucle normale, une classification dure 37 µs toutes les 2 s : son effet
+  sur le courant moyen serait invisible à l'ampèremètre. Le programme avec IA
+  remplit donc la fenêtre de classifications enchaînées ; le programme témoin
+  la passe en sommeil (`WFI`). Tout le reste est identique.
+
+L'énergie d'une classification se déduit alors des deux courants relevés :
+
+```
+E = (I_avec_IA - I_temoin) x V_dd x 1 s / nombre_de_classifications
+```
+
+Le nombre de classifications par fenêtre est affiché une fois au démarrage du
+programme avec IA.
+
+En mode témoin, l'autotest de démarrage est aussi désactivé, puisqu'il
+exécute lui aussi le réseau : le programme témoin est réellement exempt de
+toute inférence.
+
+**Cette configuration compile mais n'a jamais été exécutée sur la carte.** En
+particulier, le sommeil `WFI` du témoin n'a pas été essayé sous débogueur : si
+la liaison de debug se perd, c'est la première chose à regarder.
+
+Reste la manipulation elle-même : mesurer le courant au jumper d'alimentation
+pour chacun des deux programmes. **Lire la documentation de la carte et
+valider la manipulation avec l'encadrant avant de la réaliser**, comme le
+demande le sujet.

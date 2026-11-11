@@ -98,7 +98,7 @@ Pointer la ligne `accord des deux methodes : oui` sur la console en direct.
 ## Ce qu'il faut avoir sous la main
 
 - La carte branchée, partie 4 déjà chargée, console ouverte. **Testé avant
-  de passer.** Le binaire `binaires/TP3_partie4_avec_IA.bin` permet de
+  de passer.** Le binaire `binaires/partie4.bin` permet de
   redémarrer sans recompiler.
 - Le tableau arbre contre réseau, projeté.
 - `TP3_IA/comparaison.csv` et `TP3_IA/baseline.csv` ouverts, au cas où on

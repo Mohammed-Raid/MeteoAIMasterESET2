@@ -12,7 +12,7 @@ TARGET = TP2_NUCLEO_N657
 # PARTIE ne declencherait aucune recompilation : les .o ne gardent pas trace
 # des -D, make les croirait a jour, et on obtiendrait silencieusement le
 # binaire de la partie precedente.
-BUILD_DIR = build/partie$(or $(PARTIE),defaut)$(if $(TEMOIN),-temoin,)
+BUILD_DIR = build/partie$(or $(PARTIE),defaut)$(if $(TEMOIN),-temoin,)$(if $(CONSO),-conso,)
 PREFIX = arm-none-eabi-
 CC = $(PREFIX)gcc
 AS = $(PREFIX)gcc -x assembler-with-cpp
@@ -46,6 +46,12 @@ endif
 # en tout point mais sans l'execution du reseau de neurones.
 ifdef TEMOIN
 C_DEFS += -DTEMOIN_SANS_IA=$(TEMOIN)
+endif
+# TP3 §3.d : CONSO=1 donne la configuration de mesure du courant : LEDs et
+# console coupees, classifications enchainees. Les deux binaires a comparer
+# sont donc :  make PARTIE=4 CONSO=1   et   make PARTIE=4 CONSO=1 TEMOIN=1
+ifdef CONSO
+C_DEFS += -DMESURE_CONSO=$(CONSO)
 endif
 
 C_INCLUDES = -ICore/Inc \

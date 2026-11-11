@@ -1,6 +1,26 @@
-# TP2 ETRS923 — Interface capteurs & STM32 — NUCLEO-N657X0-Q
+# ETRS923 — IA et Objets Connectés — NUCLEO-N657X0-Q
 
-Projet unique couvrant les 3 parties du TP. La partie exécutée est choisie par `PARTIE_TP` dans `Core/Inc/main.h` (valeur par défaut : 3).
+Projet unique couvrant le TP2 (interface capteurs et STM32) et la partie embarquée du TP3 (Cloud versus Edge AI). La partie exécutée est choisie par `PARTIE_TP` dans `Core/Inc/main.h` (valeur par défaut : 4).
+
+## Correspondance entre les sujets et le dépôt
+
+| Sujet | Demandé | Où | Partie |
+| --- | --- | --- | --- |
+| TP2 §1.a | allumer les trois LEDs | `Core/Src/partie1_chenillard.c` | 1 |
+| TP2 §1.b | chenillard, temporisation de 3 s | `Core/Src/partie1_chenillard.c` | 1 |
+| TP2 §1.c | logs `<debut d'application>`, `<debut de chenillard>`, `<ROUGE>`, `<VERT>`, `<BLEU>` | `Core/Src/partie1_chenillard.c` | 1 |
+| TP2 §2.a | lire les capteurs avec les drivers ST, afficher les valeurs | `Core/Src/capteurs.c`, `Drivers/STMems/` | 2 |
+| TP2 §2.b | LED rouge = lecture en cours, verte = disponible | `Core/Src/partie2_capteurs.c` | 2 |
+| TP2 §3.a | FreeRTOS sur la carte | `Middlewares/Third_Party/FreeRTOS`, `Core/Src/partie3_reseau.c` | 3 |
+| TP2 §3.b | lwIP avec DHCP, ICMP et sockets BSD | `LWIP/Target/`, `Core/Src/partie3_reseau.c` | 3 |
+| TP2 §3.c | ping sur google.com | `ping_hote()` dans `Core/Src/partie3_reseau.c` | 3 |
+| TP2 §3.d | LED bleue = communication réseau | `Core/Src/partie3_reseau.c` | 3 |
+| TP2 §3.e | logs `<Lecture Interface Capteurs>`, `<Communication Reseau>` | `Core/Src/partie3_reseau.c` | 3 |
+| TP3 §1 | modèle météo entraîné, compromis étudié | `TP3_IA/` | — |
+| TP3 §2 | ONNX vers MATLAB, ThingSpeak, Talkback | `TP3_IA/matlab/`, `Core/Src/cloud_thingspeak.c` | 5 |
+| TP3 §3 | inférence en C sur les capteurs réels, programme témoin | `Core/Src/modele_ia.c`, `Core/Src/partie4_ia.c` | 4 |
+
+Le détail du TP3, avec ce qui est validé, ce qui est seulement écrit et ce qui reste à faire, est dans [TP3_IA/README.md](TP3_IA/README.md). Le TP1 (MNIST) n'est pas dans ce dépôt.
 
 ## Matériel et câblage
 
@@ -30,13 +50,13 @@ Le sujet indique « PA12 -> I2C2_SCL, PA11 -> I2C2_SDA » : ce mapping ne corres
 
 ```
 make            (partie définie dans main.h)
-make PARTIE=2   (force la partie 2)
+make PARTIE=2   (force la partie 2, de 1 à 5)
 make clean
 ```
 
-Sorties : `build/TP2_NUCLEO_N657.elf`, `.bin`, `.hex`.
+Chaque configuration compile dans son propre dossier : `build/partie2/TP2_NUCLEO_N657.elf`, `.bin`, `.hex`. Sans cela, changer `PARTIE` ne déclencherait aucune recompilation et on obtiendrait le binaire de la partie précédente.
 
-Des binaires déjà compilés sont fournis dans `binaires/` (`TP2_partieX.elf` et `TP2_partieX.bin`).
+Des binaires déjà compilés sont fournis dans `binaires/` (`partie1.bin` à `partie5.bin`, plus les variantes de mesure de consommation de la partie 4).
 
 ## Charger le programme sur la carte
 
