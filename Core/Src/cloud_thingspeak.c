@@ -103,8 +103,14 @@ static int echange_http(const char *chemin, char **corps, uint32_t *latence_ms)
     return CLOUD_ERREUR_CONNEXION;
   }
 
+  /* HTTP/1.0 et non 1.1 : en 1.1, ThingSpeak renvoie la reponse Talkback
+     decoupee en morceaux ("Transfer-Encoding: chunked"), et le corps lu ici
+     commencerait par la taille du premier morceau au lieu de la commande.
+     En 1.0, le serveur envoie le corps d'un bloc avec Content-Length.
+     Verifie avec curl le 19/11/2026. Le serveur repond tout de meme avec une
+     ligne de statut "HTTP/1.1", d'ou le double test plus bas. */
   longueur = snprintf(requete, sizeof(requete),
-                      "GET %s HTTP/1.1\r\n"
+                      "GET %s HTTP/1.0\r\n"
                       "Host: " THINGSPEAK_HOTE "\r\n"
                       "User-Agent: STM32N6-ETRS923\r\n"
                       "Connection: close\r\n"

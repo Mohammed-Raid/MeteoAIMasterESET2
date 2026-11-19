@@ -168,7 +168,7 @@ la carte, moins précis mais sans soudure.
 
 ## Cloud — ce qu'il reste à brancher
 
-Tout est décrit pas à pas dans le guide du binôme. En résumé :
+La marche à suivre complète, clic par clic, est dans [THINGSPEAK.md](THINGSPEAK.md). En résumé :
 
 1. Deux canaux ThingSpeak et un TalkBack. Canal de mesures, rempli par la
    carte : field1 température, field2 humidité, field3 pression **mesurée**
@@ -176,9 +176,11 @@ Tout est décrit pas à pas dans le guide du binôme. En résumé :
    field6 durée Edge en µs. Canal de résultats, rempli par MATLAB : field1
    classe, field2 confiance, field3 durée d'inférence en ms, field4 âge de la
    mesure, field5 à 8 probabilités.
-2. `matlab/ThingSpeak_MeteoAnalysis.m` dans une application MATLAB Analysis,
-   avec `export/meteo_weights_inline.m` collé dans la section POIDS. Le script
-   calcule le réseau sans Deep Learning Toolbox, indisponible dans ThingSpeak.
+2. `export/ThingSpeak_MeteoAnalysis_pret.m` dans une application MATLAB
+   Analysis : c'est le script du binôme avec les poids déjà insérés par
+   `preparer_thingspeak.py`. Il calcule le réseau sans Deep Learning Toolbox,
+   indisponible dans ThingSpeak. Son calcul a été vérifié hors ligne contre
+   les vecteurs de test : 8/8 classes identiques, écart maximal 2,4e-5.
 3. Une application React qui déclenche le script à chaque nouvelle mesure.
 4. Les clés de la carte dans `Core/Inc/config_cloud_local.h`, ignoré par Git
    (modèle dans `config_cloud.h`).
@@ -192,6 +194,7 @@ puisque le script tourne après l'écriture : il a 16 à 32 s de retard.
 py -3.12 TP3_IA/executer_notebook_local.py   # le notebook, sans Colab : export/
 py -3.12 TP3_IA/generer_c.py                 # Core/Src/modele_ia.c
 py -3.12 TP3_IA/baseline_arbre.py            # Core/Src/baseline_arbre.c
+py -3.12 TP3_IA/preparer_thingspeak.py       # export/ThingSpeak_MeteoAnalysis_pret.m
 copy TP3_IA\export\meteo_model_params.h Core\Inc\
 ```
 
@@ -213,7 +216,9 @@ fichier qui inclut l'en-tête sans utiliser les noms produisait un avertissement
   l'extérieur. Cela n'affecte pas la comparaison Cloud/Edge, qui porte sur les
   mêmes entrées, mais interdit de lire les classes comme une prévision.
 - **HTTP et non HTTPS** vers ThingSpeak : lwIP n'a pas de pile TLS dans ce
-  projet. La clé d'API circule en clair.
+  projet. La clé d'API circule en clair. Et **HTTP/1.0**, pas 1.1 : en 1.1,
+  ThingSpeak découpe la réponse Talkback en morceaux, et la carte lirait la
+  taille du morceau au lieu de la commande.
 - **Charger en ligne de commande** exige un serveur GDB neuf à chaque
   chargement, connecté sous reset et sur le port d'accès 1 du N6
   (`-k -m 1`). Recharger sans reset bloque le nouveau programme avant même
