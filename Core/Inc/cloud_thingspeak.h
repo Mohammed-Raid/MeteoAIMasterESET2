@@ -7,7 +7,7 @@
   *  §2.d : recuperation du verdict du Cloud via l'API Talkback.
   *
   *  Chaque appel mesure sa propre latence aller-retour, qui est le chiffre a
-  *  opposer aux 37 us de l'inference embarquee pour repondre au §3.c.
+  *  opposer aux 100 us environ de l'inference embarquee pour repondre au §3.c.
   ******************************************************************************
   */
 #ifndef CLOUD_THINGSPEAK_H

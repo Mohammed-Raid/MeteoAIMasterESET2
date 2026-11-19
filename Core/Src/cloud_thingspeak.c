@@ -25,7 +25,13 @@
 #include "lwip/netdb.h"
 
 #define TAILLE_REQUETE   512
-#define TAILLE_REPONSE   768
+
+/* Les en-tetes HTTP de ThingSpeak pesent a eux seuls environ 900 octets
+   (mesure du 19/11/2026 : 897 a 920 octets selon la requete), avant le
+   corps utile de quelques octets. Avec un tampon de 768 octets, le corps
+   etait coupe : chaque ecriture, pourtant acceptee, passait pour refusee,
+   et la commande Talkback n'etait jamais lue. 2048 laisse une marge. */
+#define TAILLE_REPONSE   2048
 
 static char requete[TAILLE_REQUETE];
 static char reponse[TAILLE_REPONSE];
@@ -226,9 +232,16 @@ static int echange_http(const char *chemin, char **corps, uint32_t *latence_ms)
     lire_redirection(reponse);
   }
 
-  /* Le corps commence apres la ligne vide qui termine les en-tetes */
+  /* Le corps commence apres la ligne vide qui termine les en-tetes. Sans
+     cette ligne, la reponse a ete tronquee : mieux vaut le signaler que
+     d'interpreter un corps vide comme un refus ou une file vide. */
   separateur = strstr(reponse, "\r\n\r\n");
-  *corps = (separateur != NULL) ? (separateur + 4) : (reponse + total);
+  if (separateur == NULL)
+  {
+    *corps = reponse + total;
+    return CLOUD_ERREUR_REPONSE;
+  }
+  *corps = separateur + 4;
 
   return resultat;
 }
