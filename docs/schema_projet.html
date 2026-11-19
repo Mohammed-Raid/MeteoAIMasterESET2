@@ -1,0 +1,133 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<title>Schéma du projet</title>
+<!-- Source de docs/schema_projet.png. Rendu en 1920x1080 avec :
+     msedge --headless --screenshot=schema_projet.png --window-size=1920,1080 schema_projet.html -->
+<style>
+  html, body { margin: 0; background: #ffffff; }
+  svg { display: block; font-family: "Segoe UI", Arial, sans-serif; }
+  .t  { fill: #111827; }
+  .g  { fill: #4b5563; }
+  .w  { fill: #ffffff; }
+</style>
+</head>
+<body>
+<svg width="1920" height="1080" viewBox="0 0 1920 1080" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <marker id="fl" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="#374151"/>
+    </marker>
+    <marker id="flv" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="#7c3aed"/>
+    </marker>
+    <marker id="flb" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="#2563eb"/>
+    </marker>
+  </defs>
+
+  <!-- Titre -->
+  <text x="60" y="68" class="t" font-size="44" font-weight="700">Station météo IA : décider sur la carte (Edge) ou dans le Cloud ?</text>
+  <text x="60" y="108" class="g" font-size="24">ETRS923 · carte STM32N657 + capteurs X-NUCLEO-IKS4A1 · le même modèle des deux côtés, mesuré</text>
+
+  <!-- ⓪ Apprendre -->
+  <rect x="60" y="132" width="1800" height="84" rx="16" fill="#f3e8ff" stroke="#7c3aed" stroke-width="2"/>
+  <text x="90" y="168" font-size="27" font-weight="700" fill="#6d28d9">⓪ Apprendre (Google Colab)</text>
+  <text x="90" y="202" class="t" font-size="22">10 ans de météo réelle · 12 stations autour du Bourget-du-Lac · 920 000 heures  →  petit réseau de neurones (756 paramètres)</text>
+  <text x="1500" y="168" font-size="22" fill="#6d28d9" font-weight="600">4 temps à reconnaître :</text>
+  <text x="1500" y="202" font-size="22" fill="#6d28d9">Clair · Nuageux · Pluie · Neige</text>
+
+  <!-- flèches "même modèle" -->
+  <path d="M810,216 L810,256" stroke="#7c3aed" stroke-width="3" stroke-dasharray="7 5" fill="none" marker-end="url(#flv)"/>
+  <text x="824" y="244" font-size="18" fill="#6d28d9" font-weight="600">même modèle</text>
+  <path d="M1510,216 L1510,256" stroke="#7c3aed" stroke-width="3" stroke-dasharray="7 5" fill="none" marker-end="url(#flv)"/>
+  <text x="1524" y="244" font-size="18" fill="#6d28d9" font-weight="600">même modèle</text>
+
+  <!-- ① Mesurer -->
+  <rect x="60" y="262" width="400" height="430" rx="18" fill="#fff7ed" stroke="#ea580c" stroke-width="2.5"/>
+  <text x="88" y="306" font-size="30" font-weight="700" fill="#c2410c">① Mesurer</text>
+  <text x="88" y="340" class="g" font-size="21">7 capteurs lus en I2C,</text>
+  <text x="88" y="366" class="g" font-size="21">l'IA en utilise 3 :</text>
+  <g font-size="25">
+    <circle cx="112" cy="418" r="24" fill="#ea580c"/><text x="112" y="427" class="w" font-size="24" font-weight="700" text-anchor="middle">T</text>
+    <text x="150" y="414" class="t" font-weight="600">Température</text><text x="150" y="442" class="g" font-size="21">ex. 26,8 °C</text>
+    <circle cx="112" cy="500" r="24" fill="#ea580c"/><text x="112" y="509" class="w" font-size="24" font-weight="700" text-anchor="middle">H</text>
+    <text x="150" y="496" class="t" font-weight="600">Humidité</text><text x="150" y="524" class="g" font-size="21">ex. 38 %</text>
+    <circle cx="112" cy="582" r="24" fill="#ea580c"/><text x="112" y="591" class="w" font-size="24" font-weight="700" text-anchor="middle">P</text>
+    <text x="150" y="578" class="t" font-weight="600">Pression</text><text x="150" y="606" class="g" font-size="21">ramenée au niveau de la mer</text>
+  </g>
+  <text x="88" y="664" class="g" font-size="19">(+ sa variation sur 3 h)</text>
+
+  <path d="M460,477 L534,477" stroke="#374151" stroke-width="4" fill="none" marker-end="url(#fl)"/>
+
+  <!-- ② Carte -->
+  <rect x="540" y="262" width="540" height="430" rx="18" fill="#ecfdf5" stroke="#059669" stroke-width="3"/>
+  <text x="568" y="306" font-size="30" font-weight="700" fill="#047857">② Décider sur la carte (Edge)</text>
+  <text x="568" y="340" class="g" font-size="21">processeur Cortex-M55 à 600 MHz, sans Internet</text>
+  <rect x="568" y="362" width="484" height="128" rx="12" fill="#ffffff" stroke="#059669" stroke-width="2"/>
+  <text x="590" y="398" class="t" font-size="23" font-weight="600">Réseau de neurones 4 → 32 → 16 → 4</text>
+  <text x="590" y="466" font-size="56" font-weight="800" fill="#047857">105 µs</text>
+  <text x="810" y="464" class="g" font-size="21">par décision</text>
+  <rect x="568" y="506" width="484" height="92" rx="12" fill="#ffffff" stroke="#9ca3af" stroke-width="2" stroke-dasharray="6 5"/>
+  <text x="590" y="542" class="t" font-size="22" font-weight="600">Arbre de décision (méthode simple)</text>
+  <text x="590" y="578" class="g" font-size="21">≈ 300 cycles, 190 fois moins de calcul</text>
+  <rect x="568" y="614" width="484" height="56" rx="28" fill="#059669"/>
+  <text x="810" y="651" class="w" font-size="25" font-weight="700" text-anchor="middle">Verdict : Clair</text>
+
+  <!-- Liaisons carte <-> Cloud -->
+  <path d="M1080,380 L1154,380" stroke="#2563eb" stroke-width="4" fill="none" marker-end="url(#flb)"/>
+  <path d="M1154,600 L1080,600" stroke="#2563eb" stroke-width="4" fill="none" marker-end="url(#flb)"/>
+  <text x="1117" y="362" font-size="18" fill="#1d4ed8" text-anchor="middle">mesures</text>
+  <text x="1117" y="630" font-size="18" fill="#1d4ed8" text-anchor="middle">verdict</text>
+
+  <!-- ③ Cloud -->
+  <rect x="1160" y="262" width="700" height="430" rx="18" fill="#eff6ff" stroke="#2563eb" stroke-width="3"/>
+  <text x="1188" y="306" font-size="30" font-weight="700" fill="#1d4ed8">③ Décider dans le Cloud (ThingSpeak)</text>
+  <text x="1188" y="340" class="g" font-size="21">via Internet, par le Wi-Fi du PC</text>
+  <g font-size="21">
+    <rect x="1188" y="360" width="300" height="70" rx="10" fill="#ffffff" stroke="#2563eb" stroke-width="2"/>
+    <text x="1338" y="390" class="t" text-anchor="middle" font-weight="600">1. Canal « Mesures »</text>
+    <text x="1338" y="418" class="g" text-anchor="middle" font-size="19">reçoit les mesures</text>
+    <path d="M1488,395 L1534,395" stroke="#2563eb" stroke-width="3" fill="none" marker-end="url(#flb)"/>
+    <rect x="1540" y="360" width="296" height="70" rx="10" fill="#ffffff" stroke="#2563eb" stroke-width="2"/>
+    <text x="1688" y="390" class="t" text-anchor="middle" font-weight="600">2. React</text>
+    <text x="1688" y="418" class="g" text-anchor="middle" font-size="19">lance le calcul</text>
+    <path d="M1688,430 L1688,468" stroke="#2563eb" stroke-width="3" fill="none" marker-end="url(#flb)"/>
+    <rect x="1540" y="474" width="296" height="70" rx="10" fill="#ffffff" stroke="#2563eb" stroke-width="2"/>
+    <text x="1688" y="504" class="t" text-anchor="middle" font-weight="600">3. MATLAB</text>
+    <text x="1688" y="532" class="g" text-anchor="middle" font-size="19">même modèle</text>
+    <path d="M1540,509 L1494,509" stroke="#2563eb" stroke-width="3" fill="none" marker-end="url(#flb)"/>
+    <rect x="1188" y="474" width="300" height="70" rx="10" fill="#ffffff" stroke="#2563eb" stroke-width="2"/>
+    <text x="1338" y="504" class="t" text-anchor="middle" font-weight="600">4. TalkBack</text>
+    <text x="1338" y="532" class="g" text-anchor="middle" font-size="19">garde « Clair » pour la carte</text>
+  </g>
+  <text x="1188" y="626" font-size="56" font-weight="800" fill="#1d4ed8">≈ 450 ms</text>
+  <text x="1478" y="604" class="g" font-size="21">aller-retour</text>
+  <text x="1478" y="632" class="g" font-size="21">verdict : Clair</text>
+  <text x="1188" y="670" class="g" font-size="19">s'arrête si Internet est coupé</text>
+
+  <!-- Résultat -->
+  <rect x="60" y="724" width="1170" height="320" rx="18" fill="#f9fafb" stroke="#d1d5db" stroke-width="2"/>
+  <text x="90" y="770" class="t" font-size="30" font-weight="700">Le résultat : même verdict, mais pas le même temps</text>
+  <text x="90" y="830" font-size="24" font-weight="700" fill="#047857">Carte</text>
+  <rect x="210" y="808" width="3" height="32" fill="#059669"/>
+  <text x="226" y="832" font-size="22" fill="#047857">105 µs : trop court pour se voir à cette échelle</text>
+  <text x="90" y="892" font-size="24" font-weight="700" fill="#1d4ed8">Cloud</text>
+  <rect x="210" y="870" width="980" height="32" rx="4" fill="#2563eb"/>
+  <text x="1170" y="894" class="w" font-size="22" font-weight="700" text-anchor="end">≈ 450 ms</text>
+  <text x="90" y="966" class="t" font-size="34" font-weight="800">La carte est ≈ 4 000 fois plus rapide</text>
+  <text x="90" y="1012" class="g" font-size="22">et continue de décider quand Internet est coupé.</text>
+
+  <!-- Leçon -->
+  <rect x="1270" y="724" width="590" height="320" rx="18" fill="#fffbeb" stroke="#d97706" stroke-width="2.5"/>
+  <text x="1300" y="770" font-size="30" font-weight="700" fill="#b45309">La leçon</text>
+  <text x="1300" y="820" class="t" font-size="23">Un simple arbre de décision fait</text>
+  <text x="1300" y="852" class="t" font-size="23">presque aussi bien que le réseau,</text>
+  <text x="1300" y="884" class="t" font-size="23">avec 190 fois moins de calcul.</text>
+  <text x="1300" y="948" font-size="27" font-weight="700" fill="#b45309">→ Mesurer avant d'adopter l'IA.</text>
+  <text x="1300" y="990" class="g" font-size="21">Plus rapide et plus sobre sur la carte ;</text>
+  <text x="1300" y="1018" class="g" font-size="21">encore plus sobre si l'IA n'est pas utile.</text>
+</svg>
+</body>
+</html>
