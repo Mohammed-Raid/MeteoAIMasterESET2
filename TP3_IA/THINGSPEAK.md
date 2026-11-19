@@ -181,6 +181,25 @@ Trois solutions :
   fausse : la carte obtient `192.168.137.159`, et ThingSpeak lui-même répond
   `statut HTTP 400` (clé refusée), sans redirection. Le chemin jusqu'au Cloud
   est donc ouvert : il ne manque que les vraies clés.
+
+  Second piège, constaté le même soir : le Wi-Fi du PC se coupe environ deux
+  minutes, toutes les dix minutes à peu près. Le journal Windows donne la
+  raison : *déconnecté en raison d'une stratégie désactivant la connexion
+  automatique sur cette interface*. Par défaut, Windows réduit le nombre de
+  connexions simultanées : il voit le port Ethernet partagé comme un accès
+  Internet filaire, coupe le Wi-Fi, perd Internet, puis le rebranche. La
+  correction se fait dans une invite PowerShell **administrateur** :
+
+  ```
+  New-ItemProperty -Path 'HKLM:\SOFTWARE\Policies\Microsoft\Windows\WcmSvc\GroupPolicy' -Name fMinimizeConnections -PropertyType DWord -Value 0 -Force
+  ```
+
+  puis redémarrer le PC et vérifier que le partage est toujours coché. Même
+  réglage par l'interface : `gpedit.msc` → *Configuration ordinateur →
+  Modèles d'administration → Réseau → Gestionnaire de connexions Windows →
+  Réduire le nombre de connexions simultanées…* → *Activé*, option
+  *0 = Autoriser les connexions simultanées*. Pour revenir au comportement
+  d'origine après le TP : `Remove-ItemProperty` sur la même valeur.
 - **Un autre réseau** : une box à la maison, ou une prise de salle de TP
   sans portail.
 
