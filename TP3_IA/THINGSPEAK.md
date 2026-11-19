@@ -163,9 +163,24 @@ Trois solutions :
   par son adresse MAC, depuis l'espace client. Celle de la carte s'affiche au
   démarrage : `[ETH] adresse MAC 00:80:E1:2E:61:54`.
 - **Partager la connexion du PC.** Le PC, déjà identifié en Wi-Fi, partage sa
-  connexion sur son port Ethernet (*Paramètres → Réseau et Internet → Point
-  d'accès mobile*, ou le partage de connexion de la carte Wi-Fi), et la carte
-  se branche sur le PC.
+  connexion sur son port Ethernet, et la carte se branche directement sur le
+  PC. Le *Point d'accès mobile* de Windows 11 ne convient pas : il ne partage
+  qu'en Wi-Fi ou en Bluetooth. Il faut le partage de connexion classique :
+  1. `Win + R`, taper `ncpa.cpl`, Entrée ;
+  2. clic droit sur **Wi-Fi** → *Propriétés* → onglet *Partage* ;
+  3. cocher *Autoriser d'autres utilisateurs du réseau à se connecter via la
+     connexion Internet de cet ordinateur* ;
+  4. dans *Connexion réseau domestique*, choisir **Ethernet**, puis *OK*.
+
+  Windows donne alors l'adresse `192.168.137.1` au port Ethernet et distribue
+  des adresses `192.168.137.x` par DHCP : la carte en reçoit une au
+  redémarrage. Le trafic de la carte sort par le Wi-Fi du PC, déjà passé par
+  la page de connexion.
+
+  Testé le 19/11/2026 sur le même réseau Wifirst, avec une clé volontairement
+  fausse : la carte obtient `192.168.137.159`, et ThingSpeak lui-même répond
+  `statut HTTP 400` (clé refusée), sans redirection. Le chemin jusqu'au Cloud
+  est donc ouvert : il ne manque que les vraies clés.
 - **Un autre réseau** : une box à la maison, ou une prise de salle de TP
   sans portail.
 
