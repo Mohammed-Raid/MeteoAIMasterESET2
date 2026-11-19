@@ -30,13 +30,16 @@
 int cloud_est_configure(void);
 
 /**
-  * @brief  Envoie les mesures et la classe predite en local vers ThingSpeak.
-  * @param  m            mesures issues de capteurs_lire()
-  * @param  classe_edge  indice de la classe predite par le modele embarque
-  * @param  latence_ms   duree aller-retour en millisecondes (peut etre NULL)
+  * @brief  Envoie les mesures et le resultat Edge vers ThingSpeak.
+  * @param  m              mesures issues de capteurs_lire()
+  * @param  classe_edge    indice de la classe predite par le modele embarque
+  * @param  confiance_pct  probabilite de cette classe, en %
+  * @param  duree_edge_us  duree de l'inference embarquee, en microsecondes
+  * @param  latence_ms     duree aller-retour en millisecondes (peut etre NULL)
   * @retval CLOUD_OK ou un code d'erreur
   */
 int cloud_envoyer_mesures(const mesures_t *m, int classe_edge,
+                          int confiance_pct, uint32_t duree_edge_us,
                           uint32_t *latence_ms);
 
 /**

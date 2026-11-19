@@ -1,0 +1,26 @@
+{
+  "schema": "K4",
+  "classes": [
+    "Clair",
+    "Nuageux",
+    "Pluie",
+    "Neige"
+  ],
+  "features": [
+    "temp",
+    "rhum",
+    "pres",
+    "dp3h"
+  ],
+  "couches": [
+    32,
+    16
+  ],
+  "params": 756,
+  "test_accuracy_f32": 0.5598690617898496,
+  "test_macroF1": 0.4838141053410147,
+  "test_accuracy_int8_5000": 0.5762,
+  "int8_tflite_octets": 4744,
+  "inference_python_batch_us_par_echantillon": 1.2518720917641686,
+  "inference_onnxruntime_1_echantillon_us": 13.100399999984802
+}

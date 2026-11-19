@@ -27,17 +27,18 @@ tableau de bord est servi par le STM32 lui-même, pas par un service externe.
 > « Cette page n'est hébergée nulle part. C'est la carte qui la sert. »
 
 **Le geste à faire, vers 2:20** : débrancher le câble réseau en plein pitch.
-La colonne Cloud tombe, la page reste, l'inférence locale continue à 37 µs.
+La colonne Cloud tombe, la page reste, l'inférence locale continue en 100 µs.
 Rebrancher. C'est la démonstration de la thèse du module en cinq secondes.
 
-> « Sept capteurs MEMS lus en I2C. Température, humidité, pression partent
-> dans un réseau de neurones entraîné sur onze ans de relevés Meteostat,
-> 142 000 observations. Inférence en 37 microsecondes sur le Cortex-M55. »
+> « Sept capteurs MEMS lus en I2C. Température, humidité et pression
+> partent dans un réseau de neurones entraîné sur dix ans de relevés de
+> douze stations autour du campus, 920 000 heures. Inférence en
+> 100 microsecondes sur le Cortex-M55. »
 
-Montrer la ligne `Autotest du modele : OK`.
+Montrer la ligne `[TEST] 8/8 identiques, ecart max = 0 e-6`.
 
-> « Cette ligne vérifie, à chaque démarrage, que le portage C donne les mêmes
-> sorties que le modèle Python, à 1e-4 près. »
+> « À chaque démarrage, la carte rejoue huit cas de test calculés en Python
+> et retrouve les mêmes probabilités, au millionième près. »
 
 ## 0:50 — 1:30 · La compétence : on ne fait pas confiance, on vérifie
 
@@ -51,39 +52,48 @@ Montrer la ligne `Autotest du modele : OK`.
 > moins de 2 % près. Ce ne sont pas des chiffres qui s'affichent, ce sont des
 > mesures justes. »
 
+> « Et notre première version prédisait la pluie en permanence. Le modèle
+> apprend sur la pression ramenée au niveau de la mer ; le capteur, lui,
+> mesure 27 hPa de moins à notre altitude. Pour le réseau, c'était une
+> dépression perpétuelle. Une ligne de correction, la même côté carte et
+> côté Cloud, et le problème a disparu. »
+
 ## 1:30 — 2:20 · Le résultat · **le cœur du pitch**
 
 > « Revenons à la question de départ. Nous avons entraîné un arbre de
-> décision sur exactement les mêmes données et le même jeu de test. »
+> décision sur exactement les mêmes données, le même découpage et la même
+> année de test que le réseau. »
 
 Afficher le tableau :
 
-| Méthode | Exactitude | Mesuré sur la carte |
-| --- | --- | --- |
-| Arbre de décision, profondeur 5 | 0,4816 | **332 cycles — 0,55 µs** |
-| Réseau de neurones 3-16-8-4 | 0,4847 | **22 358 cycles — 37,26 µs** |
+| Méthode | macro-F1 | balanced accuracy | Mesuré sur la carte |
+| --- | --- | --- | --- |
+| Arbre de décision, profondeur 5 | **0,487** | 0,602 | **~300 cycles** |
+| Réseau de neurones 4-32-16-4 | 0,484 | **0,632** | **~62 000 cycles** |
 
-> « Le réseau gagne trois millièmes d'exactitude. Trois millièmes. Pour
-> **soixante-sept fois plus de cycles**, mesurés sur la carte, pas estimés.
-> Et sur tous les relevés observés, les deux méthodes prédisent la même
-> classe. Sur ce problème, l'IA ne se justifie pas — et le cours affirmait
-> l'inverse. »
+> « L'arbre fait jeu égal : il gagne en macro-F1, le réseau garde trois
+> points de balanced accuracy. Pour **environ 190 fois plus de cycles**,
+> mesurés sur la carte, pas estimés. Sur ce problème, le bénéfice du réseau
+> est marginal — et le cours affirmait qu'il était justifié. »
 
-Pointer la ligne `accord des deux methodes : oui` sur la console en direct.
+Pointer la ligne `le reseau coute ... fois plus` sur la console en direct.
+Ne pas affirmer que les deux méthodes sont toujours d'accord : elles ne le
+sont pas, la ligne `accord des deux methodes` le montre.
 
-> « Mieux : l'arbre est lisible. “Si l'humidité dépasse 86 %, alors
-> précipitations.” Un humain comprend la décision. Le réseau, lui, est 236
-> poids opaques. »
+> « Mieux : l'arbre est lisible. “Si l'humidité reste sous 75 % et la
+> pression sous 1014 hPa…” Un humain suit la décision. Le réseau, lui, est
+> 756 poids opaques. »
 
 ## 2:20 — 2:45 · La démarche de sobriété
 
-> « Nous avons aussi testé la quantification int8, que le cours présente
-> comme obligatoire. Résultat mesuré : le modèle **grossit**, de 3 140 à
-> 3 496 octets, parce que le surcoût du format dépasse les 944 octets de
-> poids. À cette échelle, la bonne pratique ne s'applique pas. »
+> « Nous avons aussi mesuré la quantification int8, que le cours présente
+> comme obligatoire. Les poids passent de 3 Ko à 0,75 Ko, mais le fichier
+> TFLite ne perd que 536 octets, de 5 280 à 4 744 : à cette échelle, le
+> format pèse plus que les poids. »
 
-> « Nous livrons deux binaires identiques à l'inférence près, pour mesurer au
-> jumper le coût énergétique exact du réseau. »
+> « Pour l'énergie, nous livrons deux programmes identiques au réseau près.
+> Mesuré sur la carte : 103,9 µs par classification avec le réseau, 0,9 µs
+> sans. Le réseau représente 99 % du temps de calcul. »
 
 ## 2:45 — 3:00 · La chute
 
@@ -101,17 +111,18 @@ Pointer la ligne `accord des deux methodes : oui` sur la console en direct.
   de passer.** Le binaire `binaires/partie4.bin` permet de
   redémarrer sans recompiler.
 - Le tableau arbre contre réseau, projeté.
-- `TP3_IA/comparaison.csv` et `TP3_IA/baseline.csv` ouverts, au cas où on
-  demande les chiffres bruts.
+- `TP3_IA/export/etude_compromis.csv` et `TP3_IA/baseline_arbre.csv`
+  ouverts, au cas où on demande les chiffres bruts.
 
 ## Questions probables, et les réponses
 
-**« Pourquoi seulement 48 % d'exactitude ? »**
-Parce que la référence n'est pas 100 %, c'est 32,4 % — le score d'un
-classifieur qui répondrait toujours la classe majoritaire. Nous gagnons 16
-points sur cette référence. Et avec trois grandeurs seulement, le plafond est
-bas : nous l'avons vérifié en multipliant la taille du réseau par 41 sans
-gagner un point.
+**« Votre accuracy est sous celle d'une réponse constante. »**
+Oui, 0,560 contre 0,568, et c'est voulu. Répondre toujours « Nuageux » donne
+0,568 d'accuracy mais ne détecte jamais ni la pluie ni la neige : sa balanced
+accuracy est de 0,25. Le nôtre détecte 71 % des heures de pluie et 73 % des
+heures de neige, pour une balanced accuracy de 0,63. Avec quatre grandeurs
+seulement, le plafond est bas : multiplier la taille du réseau par 40 ne fait
+pas gagner un point.
 
 **« Pourquoi pas X-CUBE-AI ? »**
 Le sujet le demande et il supporte bien le N6 depuis la version 10.0.0. Son

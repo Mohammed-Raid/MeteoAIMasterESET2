@@ -157,6 +157,7 @@ static int echange_http(const char *chemin, char **corps, uint32_t *latence_ms)
  *  §2.c : envoi des mesures vers le canal
  * ==========================================================================*/
 int cloud_envoyer_mesures(const mesures_t *m, int classe_edge,
+                          int confiance_pct, uint32_t duree_edge_us,
                           uint32_t *latence_ms)
 {
   char chemin[256];
@@ -175,12 +176,18 @@ int cloud_envoyer_mesures(const mesures_t *m, int classe_edge,
   format_float_brut(m->sht40_humidite_rh.valeur, h, sizeof(h));
   format_float_brut(m->df_pression_hpa.valeur, p, sizeof(p));
 
-  /* field1..field3 : les grandeurs physiques, que MATLAB relira cote Cloud.
-     field4 : la classe predite en local, pour pouvoir comparer les deux
-     verdicts directement dans le canal. */
+  /* Champs attendus par TP3_IA/matlab/ThingSpeak_MeteoAnalysis.m et par la
+     cellule 12 du notebook :
+       field1..field3 : temperature, humidite, pression MESUREE. La pression
+                        est envoyee brute : le script MATLAB la ramene lui-meme
+                        au niveau de la mer, avec la meme formule que la carte.
+       field4..field6 : resultat Edge (classe, confiance %, duree en us), pour
+                        comparer les deux verdicts sur la meme observation. */
   snprintf(chemin, sizeof(chemin),
-           "/update?api_key=%s&field1=%s&field2=%s&field3=%s&field4=%d",
-           THINGSPEAK_WRITE_API_KEY, t, h, p, classe_edge);
+           "/update?api_key=%s&field1=%s&field2=%s&field3=%s"
+           "&field4=%d&field5=%d&field6=%lu",
+           THINGSPEAK_WRITE_API_KEY, t, h, p,
+           classe_edge, confiance_pct, (unsigned long)duree_edge_us);
 
   code = echange_http(chemin, &corps, latence_ms);
   if (code != CLOUD_OK)

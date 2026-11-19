@@ -16,11 +16,11 @@ Projet unique couvrant le TP2 (interface capteurs et STM32) et la partie embarqu
 | TP2 §3.c | ping sur google.com | `ping_hote()` dans `Core/Src/partie3_reseau.c` | 3 |
 | TP2 §3.d | LED bleue = communication réseau | `Core/Src/partie3_reseau.c` | 3 |
 | TP2 §3.e | logs `<Lecture Interface Capteurs>`, `<Communication Reseau>` | `Core/Src/partie3_reseau.c` | 3 |
-| TP3 §1 | modèle météo entraîné, compromis étudié | `TP3_IA/` | — |
-| TP3 §2 | ONNX vers MATLAB, ThingSpeak, Talkback | `TP3_IA/matlab/`, `Core/Src/cloud_thingspeak.c` | 5 |
-| TP3 §3 | inférence en C sur les capteurs réels, programme témoin | `Core/Src/modele_ia.c`, `Core/Src/partie4_ia.c` | 4 |
+| TP3 §1 | modèle météo entraîné, compromis étudié | `TP3_IA/TP3_Meteo_Colab.ipynb`, `TP3_IA/export/` | — |
+| TP3 §2 | ONNX vers MATLAB, ThingSpeak, Talkback | `TP3_IA/matlab/`, `Core/Src/cloud_thingspeak.c`, `Core/Src/meteo_talkback.c` | 5 |
+| TP3 §3 | inférence en C sur les capteurs réels, programme témoin, mesure de consommation | `Core/Src/meteo_ia.c`, `Core/Src/partie4_ia.c` | 4 |
 
-Le détail du TP3, avec ce qui est validé, ce qui est seulement écrit et ce qui reste à faire, est dans [TP3_IA/README.md](TP3_IA/README.md). Le TP1 (MNIST) n'est pas dans ce dépôt.
+Le détail du TP3, avec ce qui est validé, ce qui est seulement écrit et ce qui reste à faire, est dans [TP3_IA/README.md](TP3_IA/README.md). Le TP1 (MNIST) n'est pas dans ce dépôt. Le modèle du TP3, ses scripts MATLAB et `meteo_ia.c` / `meteo_talkback.c` sont le travail du binôme sur la partie IA ; la partie capteurs les a intégrés sur la carte.
 
 ## Matériel et câblage
 

@@ -3,124 +3,118 @@
   * @file    baseline_arbre.c
   * @brief   Reference deterministe : arbre de decision de profondeur 5.
   *
-  *  FICHIER GENERE AUTOMATIQUEMENT par TP3_IA/6_baseline.py
-  *  Ne pas editer a la main.
-  *
-  *  A comparer avec modele_ia.c : meme probleme, memes donnees, meme jeu de
-  *  test, mais aucune multiplication ni exponentielle. L'arbre travaille
-  *  directement sur les grandeurs physiques, sans normalisation.
+  *  FICHIER GENERE par TP3_IA/baseline_arbre.py. Ne pas editer a la main.
+  *  Aucune multiplication, aucune exponentielle : au plus 5 comparaisons.
   ******************************************************************************
   */
 #include "baseline_arbre.h"
 
-const char *const arbre_noms_classes[ARBRE_NB_CLASSES] = { "Clair", "Partiellement nuageux", "Couvert", "Precipitations" };
-
 int arbre_predire(const float entrees[ARBRE_NB_ENTREES])
 {
-  if (entrees[1] <= 86.500000f)  /* rhum en %RH */
+  if (entrees[1] <= 75.500000f)  /* rhum en %RH */
   {
-    if (entrees[2] <= 1015.549988f)  /* pres en hPa */
+    if (entrees[2] <= 1014.450012f)  /* pres en hPa (niveau mer) */
     {
-      if (entrees[1] <= 51.500000f)  /* rhum en %RH */
+      if (entrees[1] <= 49.500000f)  /* rhum en %RH */
       {
-        if (entrees[1] <= 32.500000f)  /* rhum en %RH */
+        if (entrees[1] <= 36.500000f)  /* rhum en %RH */
         {
-          if (entrees[0] <= 30.950000f)  /* temp en degC */
+          if (entrees[3] <= -0.850000f)  /* dp3h en hPa en 3 h */
           {
-            return 0;  /* Clair (339 releves) */
+            return 0;  /* Clair */
           }
           else
           {
-            return 0;  /* Clair (374 releves) */
+            return 0;  /* Clair */
           }
         }
         else
         {
-          if (entrees[0] <= 25.750000f)  /* temp en degC */
+          if (entrees[0] <= 21.450000f)  /* temp en degC */
           {
-            return 1;  /* Partiellement nuageux (2690 releves) */
+            return 1;  /* Nuageux */
           }
           else
           {
-            return 0;  /* Clair (1427 releves) */
+            return 0;  /* Clair */
           }
         }
       }
       else
       {
-        if (entrees[2] <= 1009.649994f)  /* pres en hPa */
+        if (entrees[0] <= 3.950000f)  /* temp en degC */
         {
-          if (entrees[1] <= 73.500000f)  /* rhum en %RH */
+          if (entrees[0] <= -1.550000f)  /* temp en degC */
           {
-            return 1;  /* Partiellement nuageux (4725 releves) */
+            return 0;  /* Clair */
           }
           else
           {
-            return 3;  /* Precipitations (6824 releves) */
+            return 1;  /* Nuageux */
           }
         }
         else
         {
-          if (entrees[1] <= 69.500000f)  /* rhum en %RH */
+          if (entrees[2] <= 1009.350006f)  /* pres en hPa (niveau mer) */
           {
-            return 1;  /* Partiellement nuageux (5769 releves) */
+            return 1;  /* Nuageux */
           }
           else
           {
-            return 1;  /* Partiellement nuageux (8479 releves) */
+            return 1;  /* Nuageux */
           }
         }
       }
     }
     else
     {
-      if (entrees[1] <= 62.500000f)  /* rhum en %RH */
+      if (entrees[1] <= 54.500000f)  /* rhum en %RH */
       {
-        if (entrees[2] <= 1020.950012f)  /* pres en hPa */
+        if (entrees[1] <= 38.500000f)  /* rhum en %RH */
         {
-          if (entrees[1] <= 39.500000f)  /* rhum en %RH */
+          if (entrees[2] <= 1021.149994f)  /* pres en hPa (niveau mer) */
           {
-            return 0;  /* Clair (1938 releves) */
+            return 0;  /* Clair */
           }
           else
           {
-            return 0;  /* Clair (7899 releves) */
+            return 0;  /* Clair */
           }
         }
         else
         {
-          if (entrees[1] <= 43.500000f)  /* rhum en %RH */
+          if (entrees[2] <= 1021.549988f)  /* pres en hPa (niveau mer) */
           {
-            return 0;  /* Clair (2261 releves) */
+            return 0;  /* Clair */
           }
           else
           {
-            return 0;  /* Clair (5641 releves) */
+            return 0;  /* Clair */
           }
         }
       }
       else
       {
-        if (entrees[2] <= 1020.049988f)  /* pres en hPa */
+        if (entrees[1] <= 64.500000f)  /* rhum en %RH */
         {
-          if (entrees[0] <= 12.950000f)  /* temp en degC */
+          if (entrees[0] <= 3.950000f)  /* temp en degC */
           {
-            return 1;  /* Partiellement nuageux (4375 releves) */
+            return 0;  /* Clair */
           }
           else
           {
-            return 1;  /* Partiellement nuageux (6462 releves) */
+            return 0;  /* Clair */
           }
         }
         else
         {
-          if (entrees[0] <= 11.850000f)  /* temp en degC */
+          if (entrees[0] <= -0.750000f)  /* temp en degC */
           {
-            return 0;  /* Clair (9779 releves) */
+            return 0;  /* Clair */
           }
           else
           {
-            return 0;  /* Clair (6274 releves) */
+            return 1;  /* Nuageux */
           }
         }
       }
@@ -128,108 +122,108 @@ int arbre_predire(const float entrees[ARBRE_NB_ENTREES])
   }
   else
   {
-    if (entrees[1] <= 94.500000f)  /* rhum en %RH */
+    if (entrees[0] <= 1.750000f)  /* temp en degC */
     {
-      if (entrees[2] <= 1015.750000f)  /* pres en hPa */
+      if (entrees[2] <= 1023.750000f)  /* pres en hPa (niveau mer) */
       {
-        if (entrees[2] <= 1009.649994f)  /* pres en hPa */
+        if (entrees[1] <= 89.500000f)  /* rhum en %RH */
         {
-          if (entrees[2] <= 996.950012f)  /* pres en hPa */
+          if (entrees[2] <= 1016.149994f)  /* pres en hPa (niveau mer) */
           {
-            return 3;  /* Precipitations (1438 releves) */
+            return 3;  /* Neige */
           }
           else
           {
-            return 3;  /* Precipitations (5983 releves) */
+            return 1;  /* Nuageux */
           }
         }
         else
         {
-          if (entrees[0] <= 8.650000f)  /* temp en degC */
+          if (entrees[0] <= 0.750000f)  /* temp en degC */
           {
-            return 3;  /* Precipitations (1833 releves) */
+            return 3;  /* Neige */
           }
           else
           {
-            return 3;  /* Precipitations (4379 releves) */
+            return 3;  /* Neige */
           }
         }
       }
       else
       {
-        if (entrees[0] <= 2.850000f)  /* temp en degC */
+        if (entrees[2] <= 1028.750000f)  /* pres en hPa (niveau mer) */
         {
-          if (entrees[1] <= 90.500000f)  /* rhum en %RH */
+          if (entrees[1] <= 93.500000f)  /* rhum en %RH */
           {
-            return 0;  /* Clair (933 releves) */
+            return 1;  /* Nuageux */
           }
           else
           {
-            return 3;  /* Precipitations (1497 releves) */
+            return 3;  /* Neige */
           }
         }
         else
         {
-          if (entrees[1] <= 91.500000f)  /* rhum en %RH */
+          if (entrees[0] <= -0.650000f)  /* temp en degC */
           {
-            return 1;  /* Partiellement nuageux (6544 releves) */
+            return 0;  /* Clair */
           }
           else
           {
-            return 3;  /* Precipitations (4129 releves) */
+            return 1;  /* Nuageux */
           }
         }
       }
     }
     else
     {
-      if (entrees[0] <= 6.250000f)  /* temp en degC */
+      if (entrees[2] <= 1016.450012f)  /* pres en hPa (niveau mer) */
       {
-        if (entrees[1] <= 97.500000f)  /* rhum en %RH */
+        if (entrees[1] <= 87.500000f)  /* rhum en %RH */
         {
-          if (entrees[2] <= 1001.649994f)  /* pres en hPa */
+          if (entrees[2] <= 1010.549988f)  /* pres en hPa (niveau mer) */
           {
-            return 3;  /* Precipitations (326 releves) */
+            return 2;  /* Pluie */
           }
           else
           {
-            return 3;  /* Precipitations (2422 releves) */
+            return 1;  /* Nuageux */
           }
         }
         else
         {
-          if (entrees[1] <= 99.500000f)  /* rhum en %RH */
+          if (entrees[2] <= 1005.649994f)  /* pres en hPa (niveau mer) */
           {
-            return 3;  /* Precipitations (1089 releves) */
+            return 2;  /* Pluie */
           }
           else
           {
-            return 3;  /* Precipitations (1023 releves) */
+            return 2;  /* Pluie */
           }
         }
       }
       else
       {
-        if (entrees[2] <= 1012.549988f)  /* pres en hPa */
+        if (entrees[1] <= 87.500000f)  /* rhum en %RH */
         {
-          if (entrees[2] <= 1006.350006f)  /* pres en hPa */
+          if (entrees[2] <= 1023.950012f)  /* pres en hPa (niveau mer) */
           {
-            return 3;  /* Precipitations (1318 releves) */
+            return 1;  /* Nuageux */
           }
           else
           {
-            return 3;  /* Precipitations (1475 releves) */
+            return 1;  /* Nuageux */
           }
         }
         else
         {
-          if (entrees[1] <= 96.500000f)  /* rhum en %RH */
+          if (entrees[2] <= 1021.149994f)  /* pres en hPa (niveau mer) */
           {
-            return 3;  /* Precipitations (1990 releves) */
+            return 2;  /* Pluie */
           }
           else
           {
-            return 3;  /* Precipitations (2061 releves) */
+            return 1;  /* Nuageux */
           }
         }
       }

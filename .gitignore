@@ -30,3 +30,8 @@ Thumbs.db
 # Cles d'API ThingSpeak : ce fichier contient des secrets, il ne doit JAMAIS
 # etre versionne. Le modele se trouve dans Core/Inc/config_cloud.h.
 Core/Inc/config_cloud_local.h
+
+# Sorties regenerables du notebook TP3 (executer_notebook_local.py)
+TP3_IA/meteo_raw.parquet
+TP3_IA/TP3_export.zip
+TP3_IA/export/donnees_split.npz

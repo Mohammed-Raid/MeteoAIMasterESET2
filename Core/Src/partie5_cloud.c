@@ -3,14 +3,17 @@
   * @file    partie5_cloud.c
   * @brief   TP3 - Cloud versus Edge AI : la comparaison.
   *
-  *  C'est le coeur du TP3. A chaque cycle, la meme observation est classee
-  *  deux fois :
-  *    - en local, par le reseau embarque (§3.b), chronometre au cycle pres ;
-  *    - dans le Cloud, en envoyant les mesures sur ThingSpeak (§2.c) et en
-  *      relisant le verdict par l'API Talkback (§2.d), chronometre en
-  *      millisecondes.
+  *  C'est le coeur du TP3. La meme observation est classee deux fois, par le
+  *  meme modele (TP3_Meteo_Colab.ipynb) :
+  *    - en local, par meteo_ia.c (§3.b), chronometre au cycle pres ;
+  *    - dans le Cloud : la carte envoie ses mesures et son resultat Edge sur
+  *      ThingSpeak (§2.c), le script TP3_IA/matlab/ThingSpeak_MeteoAnalysis.m
+  *      classe la mesure et depose "METEO:<classe>:<confiance>" dans la file
+  *      Talkback, que la carte relit (§2.d).
   *
-  *  Les deux latences sont affichees cote a cote : c'est la reponse au §3.c.
+  *  Le verdict Cloud lu a un echange correspond a la mesure envoyee a
+  *  l'echange precedent : le script MATLAB est declenche APRES l'ecriture.
+  *  Le retard reel du Cloud est donc d'un cycle d'envoi, soit 16 a 32 s.
   *
   *  L'arbre de decision deterministe tourne aussi, pour garder sous les yeux
   *  ce que couterait la solution la plus sobre.
@@ -21,7 +24,9 @@
 #include "main.h"
 #include "format.h"
 #include "capteurs.h"
-#include "modele_ia.h"
+#include "meteo_ia.h"
+#include "meteo_entrees.h"
+#include "meteo_talkback.h"
 #include "baseline_arbre.h"
 #include "reseau.h"
 #include "cloud_thingspeak.h"
@@ -41,21 +46,14 @@
 #define PERIODE_LOCALE_MS    2000
 #define CYCLES_PAR_ENVOI     (THINGSPEAK_PERIODE_MIN_MS / PERIODE_LOCALE_MS)
 
-/* ============================================================================
- *  Outils
- * ==========================================================================*/
-static void dwt_demarrer(void)
-{
-  DCB->DEMCR |= DCB_DEMCR_TRCENA_Msk;
-  DWT->CYCCNT = 0;
-  DWT->CTRL |= DWT_CTRL_CYCCNTENA_Msk;
-}
+#if ARBRE_NB_ENTREES != METEO_NB_FEATURES
+#error "L'arbre de reference et le modele n'ont pas les memes entrees : relancer TP3_IA/baseline_arbre.py"
+#endif
 
 static float cycles_vers_us(uint32_t cycles)
 {
   return (float)cycles * 1000000.0f / (float)SystemCoreClock;
 }
-
 
 /* ============================================================================
  *  Tache applicative
@@ -70,12 +68,18 @@ static void tache_application(void *argument)
      peut stocker n'aurait aucun sens. */
   static char talkback[TAILLE_LIBELLE_CLOUD];
 
-  float entrees[IA_NB_ENTREES];
+  meteo_entrees_info_t info;
+  float entrees[METEO_NB_FEATURES];
+  float probabilites[METEO_NB_CLASSES];
   char texte[16];
   uint32_t compteur = 0;
   int classe_edge;
   int classe_arbre;
+  int classe_cloud;
+  int confiance_cloud;
+  uint32_t duree_edge_us;
   uint32_t cycles_edge;
+  uint32_t debut;
   uint32_t latence_envoi_ms;
   uint32_t latence_talkback_ms;
   int code;
@@ -83,22 +87,20 @@ static void tache_application(void *argument)
   (void)argument;
 
   printf("<debut d'application>\r\n");
-  dwt_demarrer();
 
-  /* --- Capteurs --------------------------------------------------------*/
+  /* --- Capteurs et modele ----------------------------------------------*/
   leds_eteindre_tout();
   led_allumer(COULEUR_ROUGE);
   capteurs_init();
   led_eteindre(COULEUR_ROUGE);
 
-  if (ia_autotest() == 0)
+  /* Initialise aussi le compteur de cycles DWT */
+  if (meteo_ia_init() != 0)
   {
-    printf("Autotest du modele : OK (portage C fidele a l'ONNX)\r\n");
+    printf("Reseau de neurones indisponible : arret\r\n");
+    Error_Handler();
   }
-  else
-  {
-    printf("Autotest du modele : ECHEC - portage incorrect !\r\n");
-  }
+  meteo_ia_autotest();
 
   /* --- Reseau ----------------------------------------------------------*/
   reseau_init();
@@ -132,9 +134,7 @@ static void tache_application(void *argument)
     capteurs_lire(&mesures);
     etat.mesures = mesures;
 
-    if (!mesures.sht40_temp_c.valide ||
-        !mesures.sht40_humidite_rh.valide ||
-        !mesures.df_pression_hpa.valide)
+    if (!meteo_entrees_construire(&mesures, HAL_GetTick(), entrees, &info))
     {
       printf("  Capteurs incomplets, cycle ignore\r\n");
       etat.classe_edge = NULL;
@@ -146,22 +146,21 @@ static void tache_application(void *argument)
       continue;
     }
 
-    entrees[0] = mesures.sht40_temp_c.valeur;
-    entrees[1] = mesures.sht40_humidite_rh.valeur;
-    entrees[2] = mesures.df_pression_hpa.valeur;
-
     /* --- 2. Inference embarquee ----------------------------------------*/
+    debut = DWT->CYCCNT;
+    if (meteo_ia_classer(entrees, probabilites, &classe_edge, &duree_edge_us) != 0)
     {
-      uint32_t debut = DWT->CYCCNT;
-      classe_edge = ia_predire(entrees, NULL);
-      cycles_edge = DWT->CYCCNT - debut;
+      printf("  Erreur d'inference, cycle ignore\r\n");
+      vTaskDelay(pdMS_TO_TICKS(PERIODE_LOCALE_MS));
+      continue;
     }
+    cycles_edge = DWT->CYCCNT - debut;
     classe_arbre = arbre_predire(entrees);
 
-    etat.classe_edge = ia_noms_classes[classe_edge];
+    etat.classe_edge = METEO_CLASS_NAMES[classe_edge];
     etat.cycles_edge = cycles_edge;
     etat.duree_edge_us = cycles_vers_us(cycles_edge);
-    etat.classe_arbre = arbre_noms_classes[classe_arbre];
+    etat.classe_arbre = METEO_CLASS_NAMES[classe_arbre];
     etat.nb_cycles++;
     if (classe_edge == classe_arbre)
     {
@@ -172,10 +171,12 @@ static void tache_application(void *argument)
     printf("T=%s", texte);
     format_float(entrees[1], texte, sizeof(texte));
     printf("  RH=%s", texte);
-    format_float(entrees[2], texte, sizeof(texte));
-    printf("  P=%s", texte);
+    format_float(info.pression_mer_hpa, texte, sizeof(texte));
+    printf("  Pmer=%s", texte);
+    format_float(info.tendance_3h_hpa, texte, sizeof(texte));
+    printf("  dP3h=%s%s", texte, info.tendance_disponible ? "" : "*");
     format_float(etat.duree_edge_us, texte, sizeof(texte));
-    printf("  Edge: %-22s %s us", ia_noms_classes[classe_edge], texte);
+    printf("  Edge: %-8s %s us", METEO_CLASS_NAMES[classe_edge], texte);
 
     /* Sante du pool de reception zero-copie. Si "libres" tombe a 0 et que
        "penurie" passe a 1, la carte ne recoit plus rien : le DMA n'a plus de
@@ -193,13 +194,19 @@ static void tache_application(void *argument)
       leds_eteindre_tout();
       led_allumer(COULEUR_BLEUE);
       printf("<Communication Reseau>\r\n");
+      if (!info.tendance_disponible)
+      {
+        printf("  (* dP3h vaut 0 tant que 3 h de pression ne sont pas accumulees)\r\n");
+      }
 
       latence_envoi_ms = 0;
       latence_talkback_ms = 0;
       talkback[0] = '\0';
       etat.cloud_joignable = 0;
 
-      code = cloud_envoyer_mesures(&mesures, classe_edge, &latence_envoi_ms);
+      code = cloud_envoyer_mesures(&mesures, classe_edge,
+                                   (int)(probabilites[classe_edge] * 100.0f + 0.5f),
+                                   duree_edge_us, &latence_envoi_ms);
       if (code == CLOUD_OK)
       {
         printf("  envoi ThingSpeak : ok en %lu ms\r\n",
@@ -211,11 +218,23 @@ static void tache_application(void *argument)
         {
           etat.cloud_joignable = 1;
           etat.latence_cloud_ms = latence_envoi_ms + latence_talkback_ms;
-          snprintf(etat.classe_cloud, sizeof(etat.classe_cloud), "%s",
-                   (talkback[0] != '\0') ? talkback : "en attente");
 
-          printf("  verdict Cloud    : %s (aller-retour %lu ms)\r\n",
-                 etat.classe_cloud, (unsigned long)etat.latence_cloud_ms);
+          /* Commande deposee par le script MATLAB : "METEO:<classe>:<conf>".
+             Le test de bornes protege METEO_CLASS_NAMES d'une commande
+             mal formee. */
+          if (meteo_talkback_lire(talkback, &classe_cloud, &confiance_cloud) &&
+              (classe_cloud >= 0) && (classe_cloud < METEO_NB_CLASSES))
+          {
+            snprintf(etat.classe_cloud, sizeof(etat.classe_cloud), "%s (%d %%)",
+                     METEO_CLASS_NAMES[classe_cloud], confiance_cloud);
+            printf("[CLOUD] %s (%d %%), verdict de l'envoi precedent\r\n",
+                   METEO_CLASS_NAMES[classe_cloud], confiance_cloud);
+          }
+          else
+          {
+            snprintf(etat.classe_cloud, sizeof(etat.classe_cloud), "en attente");
+            printf("  Talkback vide : pas encore de verdict du Cloud\r\n");
+          }
         }
         else
         {
@@ -231,18 +250,17 @@ static void tache_application(void *argument)
       printf("<Comparaison Cloud / Edge>\r\n");
 
       format_float(etat.duree_edge_us, texte, sizeof(texte));
-      printf("  Edge   : %-22s %s us (%lu cycles)\r\n",
-             ia_noms_classes[classe_edge], texte, (unsigned long)cycles_edge);
-      printf("  Arbre  : %-22s (reference deterministe)\r\n",
-             arbre_noms_classes[classe_arbre]);
+      printf("  Edge   : %-8s %s us (%lu cycles)\r\n",
+             METEO_CLASS_NAMES[classe_edge], texte, (unsigned long)cycles_edge);
+      printf("  Arbre  : %-8s (reference deterministe)\r\n",
+             METEO_CLASS_NAMES[classe_arbre]);
 
-      if (etat.cloud_joignable && (etat.duree_edge_us > 0.0f))
+      if (etat.cloud_joignable)
       {
-        printf("  Cloud  : %-22s %lu ms\r\n", etat.classe_cloud,
-               (unsigned long)etat.latence_cloud_ms);
-        printf("  -> le Cloud est %lu fois plus lent que l'inference locale\r\n",
-               (unsigned long)((float)etat.latence_cloud_ms * 1000.0f
-                               / etat.duree_edge_us));
+        printf("  Cloud  : %s, aller-retour HTTP %lu ms, verdict en retard "
+               "d'un envoi (%u s)\r\n", etat.classe_cloud,
+               (unsigned long)etat.latence_cloud_ms,
+               (unsigned)(THINGSPEAK_PERIODE_MIN_MS / 1000u));
       }
     }
 

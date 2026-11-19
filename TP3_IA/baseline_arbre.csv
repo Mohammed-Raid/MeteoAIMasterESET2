@@ -1,0 +1,10 @@
+methode,accuracy,balanced_acc,macro_F1
+Reseau (756 parametres),0.5599,0.6315,0.4838
+Arbre profondeur 1,0.4956,0.3133,0.2678
+Arbre profondeur 2,0.3862,0.5983,0.3373
+Arbre profondeur 3,0.5223,0.6165,0.4603
+Arbre profondeur 4,0.5417,0.6096,0.4517
+Arbre profondeur 5,0.5639,0.6015,0.4871
+Arbre profondeur 6,0.5362,0.6192,0.474
+Arbre profondeur 8,0.5434,0.6361,0.4795
+Arbre profondeur 10,0.5439,0.6094,0.4712

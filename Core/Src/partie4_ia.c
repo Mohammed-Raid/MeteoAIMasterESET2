@@ -1,21 +1,21 @@
 /**
   ******************************************************************************
   * @file    partie4_ia.c
-  * @brief   TP3 - IA embarquee sur la carte STM32N6.
+  * @brief   TP3 §3 - IA embarquee sur la carte STM32N6.
   *
-  *  §3.b : execution du reseau de neurones en mode inference.
-  *  §3.c : inference a partir des donnees reelles des capteurs de la carte
-  *         fille, avec mesure du temps d'execution pour la comparaison avec
-  *         la solution Cloud.
-  *  §3.d : un programme temoin, qui execute exactement les memes etapes SANS
-  *         l'inference, permet d'isoler la consommation du reseau. Il
-  *         s'obtient en compilant avec -DTEMOIN_SANS_IA=1. Pour la mesure
-  *         du courant elle-meme, -DMESURE_CONSO=1 coupe les LEDs et la
-  *         console et enchaine les classifications (voir plus bas).
+  *  Le modele est celui du notebook TP3_Meteo_Colab.ipynb : ses constantes
+  *  sont dans meteo_model_params.h, et il est execute par meteo_ia.c (avec
+  *  X-CUBE-AI quand son code est present, sinon avec le code C genere par
+  *  TP3_IA/generer_c.py).
   *
-  *  Entrees du modele : temperature et humidite du SHT40AD1B, pression du
-  *  LPS22DF. Le SHT40 fournit les deux premieres, ce qui evite de melanger
-  *  des capteurs dont les biais different.
+  *  §3.b : execution du reseau en mode inference.
+  *  §3.c : inference sur les donnees reelles des capteurs, avec la duree.
+  *  §3.d : programme temoin (TEMOIN_SANS_IA a 1 dans main.h), qui execute
+  *         tout sauf le reseau, et mode de mesure du courant (MESURE_CONSO).
+  *
+  *  L'arbre de decision de reference tourne a cote du reseau, sur les memes
+  *  entrees : il repond a la question du polycopie, "l'IA apporte-t-elle un
+  *  benefice clair face a une methode deterministe ?".
   *
   *  LEDs : ROUGE = lecture des capteurs, BLEUE = inference, VERTE = attente.
   ******************************************************************************
@@ -23,120 +23,86 @@
 #include "main.h"
 #include "format.h"
 #include "capteurs.h"
-#include "modele_ia.h"
+#include "meteo_ia.h"
+#include "meteo_entrees.h"
 #include "baseline_arbre.h"
 
 #define PERIODE_CYCLE_MS   2000
 
-/* TP3 §3.d : programme temoin, identique mais sans l'appel au reseau */
-#ifndef TEMOIN_SANS_IA
-#define TEMOIN_SANS_IA   0
-#endif
-
-/* TP3 §3.d : configuration de mesure du courant (LEDs et console coupees,
-   classifications enchainees). A combiner ou non avec TEMOIN_SANS_IA. */
-#ifndef MESURE_CONSO
-#define MESURE_CONSO     0
-#endif
-
-/* ============================================================================
- *  Compteur de cycles DWT : mesure du temps d'execution (§3.c)
- * ==========================================================================*/
-static void dwt_demarrer(void)
-{
-  DCB->DEMCR |= DCB_DEMCR_TRCENA_Msk;
-  DWT->CYCCNT = 0;
-  DWT->CTRL |= DWT_CTRL_CYCCNTENA_Msk;
-}
-
-#if !TEMOIN_SANS_IA
-/* Convertit un nombre de cycles en microsecondes.
-   Le resultat est un flottant : l'arbre de decision s'execute en moins
-   d'une microseconde, un entier afficherait "0 us" et donnerait l'impression
-   d'une mesure ratee. */
-static float cycles_vers_us(uint32_t cycles)
-{
-  return (float)cycles * 1000000.0f / (float)SystemCoreClock;
-}
+#if ARBRE_NB_ENTREES != METEO_NB_FEATURES
+#error "L'arbre de reference et le modele n'ont pas les memes entrees : relancer TP3_IA/baseline_arbre.py"
 #endif
 
 #if MESURE_CONSO
 /* ============================================================================
- *  TP3 §3.d : boucle dediee a la mesure du courant d'alimentation
+ *  TP3 §3.d : mesure du courant d'alimentation
  *
- *  Le sujet demande de desactiver les GPIO et tout composant non essentiel,
- *  puis de comparer le programme avec le reseau a un programme temoin qui
- *  fait toutes les etapes sauf l'execution du modele.
+ *  Une classification dure quelques dizaines de microsecondes : aucun
+ *  instrument ne la voit passer. On la repete donc NB_REPETITIONS fois
+ *  d'affilee (la rafale), puis on laisse la carte au repos REPOS_MS, ce qui
+ *  donne un niveau de reference bien visible sur le voltmetre.
  *
- *  Dans la boucle normale, une classification dure 37 us toutes les 2 s :
- *  son effet sur le courant moyen est invisible a l'amperemetre. Ici, apres
- *  chaque lecture des capteurs, la fenetre de mesure est donc remplie :
- *    - programme avec IA : de classifications enchainees sans interruption ;
- *    - programme temoin  : de rien, le coeur dort (WFI) jusqu'a la fin.
- *  La difference de courant entre les deux programmes est alors celle d'une
- *  classification en continu, et l'energie d'UNE classification vaut :
+ *  Les deux programmes executent la meme boucle : le programme avec IA, et
+ *  le temoin (TEMOIN_SANS_IA a 1) qui fait tout - normalisation, copie,
+ *  argmax, chronometrage - sauf le reseau. Leur rafale n'a donc pas la meme
+ *  duree, et on compare les energies totales :
  *
- *      E = (I_ia - I_temoin) x V_dd x FENETRE / nombre_de_classifications
+ *    E_classification = (I_ia x T_ia - I_temoin x T_temoin) x V / NB_REPETITIONS
  *
- *  Le nombre de classifications par fenetre est affiche une seule fois au
- *  demarrage, puis la console se tait : l'UART fait partie des composants
- *  non essentiels pendant la mesure.
+ *  La duree de chaque rafale est affichee pendant le repos, jamais pendant
+ *  la mesure. Les LEDs sont eteintes et les capteurs lus une seule fois,
+ *  avant la premiere rafale : ils ne font pas partie de ce qu'on mesure.
  * ==========================================================================*/
-#define FENETRE_MESURE_MS   1000u
+#define NB_REPETITIONS   100000u
+#define REPOS_MS         10000u
 
 static void boucle_mesure_consommation(void)
 {
   mesures_t mesures;
-  float entrees[IA_NB_ENTREES];
+  float entrees[METEO_NB_FEATURES];
+  float probabilites[METEO_NB_CLASSES];
+  int classe;
+  uint32_t duree_us;
   uint32_t debut;
-#if !TEMOIN_SANS_IA
-  uint32_t classifications;
-  int premiere_fenetre = 1;
-#endif
+  uint32_t duree_ms;
+  uint32_t i;
 
-  /* GPIO des LEDs au repos pour toute la duree de la mesure */
   leds_eteindre_tout();
 
-  printf("MODE MESURE DE CONSOMMATION (TP3 §3.d)\r\n");
-  printf("  LEDs eteintes, console muette, fenetre de %u ms\r\n",
-         (unsigned)FENETRE_MESURE_MS);
+  /* Entrees figees pour toute la mesure. A defaut de capteurs valides, le
+     premier vecteur de test du notebook fait l'affaire : seule compte
+     l'egalite des entrees entre les deux programmes. */
+  capteurs_lire(&mesures);
+  if (!meteo_entrees_construire(&mesures, HAL_GetTick(), entrees, NULL))
+  {
+    for (i = 0; i < METEO_NB_FEATURES; i++)
+    {
+      entrees[i] = METEO_TEST_IN[0][i];
+    }
+  }
+
+  printf("MODE MESURE DE CONSOMMATION (TP3 3.d)\r\n");
 #if TEMOIN_SANS_IA
-  printf("  programme TEMOIN : aucune classification, coeur en sommeil\r\n");
+  printf("  programme TEMOIN : tout sauf le reseau de neurones\r\n");
 #else
-  printf("  programme AVEC IA : classifications enchainees\r\n");
+  printf("  programme AVEC IA\r\n");
 #endif
+  printf("  rafales de %lu classifications, repos de %lu ms, LEDs eteintes\r\n",
+         (unsigned long)NB_REPETITIONS, (unsigned long)REPOS_MS);
 
   while (1)
   {
-    /* Etape commune aux deux programmes : acquisition des capteurs */
-    capteurs_lire(&mesures);
-    entrees[0] = mesures.sht40_temp_c.valeur;
-    entrees[1] = mesures.sht40_humidite_rh.valeur;
-    entrees[2] = mesures.df_pression_hpa.valeur;
-
     debut = HAL_GetTick();
+    for (i = 0; i < NB_REPETITIONS; i++)
+    {
+      (void)meteo_ia_classer(entrees, probabilites, &classe, &duree_us);
+    }
+    duree_ms = HAL_GetTick() - debut;
 
-#if TEMOIN_SANS_IA
-    (void)entrees;
-    while ((HAL_GetTick() - debut) < FENETRE_MESURE_MS)
-    {
-      __WFI();   /* reveille chaque milliseconde par la base de temps */
-    }
-#else
-    classifications = 0;
-    while ((HAL_GetTick() - debut) < FENETRE_MESURE_MS)
-    {
-      (void)ia_predire(entrees, NULL);
-      classifications++;
-    }
-
-    if (premiere_fenetre)
-    {
-      premiere_fenetre = 0;
-      printf("  %lu classifications par fenetre\r\n",
-             (unsigned long)classifications);
-    }
-#endif
+    printf("  rafale : %lu ms, soit %lu ns par classification\r\n",
+           (unsigned long)duree_ms,
+           (unsigned long)((uint64_t)duree_ms * 1000000u / NB_REPETITIONS));
+    HAL_Delay(REPOS_MS);
   }
 }
 #endif /* MESURE_CONSO */
@@ -147,44 +113,43 @@ static void boucle_mesure_consommation(void)
 void partie4_lancer(void)
 {
   mesures_t mesures;
-  float entrees[IA_NB_ENTREES];
+  meteo_entrees_info_t info;
+  float entrees[METEO_NB_FEATURES];
+  float probabilites[METEO_NB_CLASSES];
   char texte[16];
+  int classe;
+  int classe_arbre;
+  uint32_t duree_us;
+  uint32_t cycles_ia;
+  uint32_t cycles_arbre;
+  uint32_t debut;
+  int i;
 
   printf("<debut d'application>\r\n");
-
-  dwt_demarrer();
 
   leds_eteindre_tout();
   led_allumer(COULEUR_ROUGE);
   capteurs_init();
+
+  /* Initialise aussi le compteur de cycles DWT */
+  if (meteo_ia_init() != 0)
+  {
+    printf("Reseau de neurones indisponible : arret\r\n");
+    Error_Handler();
+  }
 
 #if MESURE_CONSO
   boucle_mesure_consommation();   /* ne revient jamais */
 #endif
 
 #if TEMOIN_SANS_IA
-  /* L'autotest execute lui aussi le reseau : on ne le lance pas en mode
-     temoin, sinon le programme ne serait plus exempt d'inference. */
-  printf("MODE TEMOIN : inference desactivee (TP3 §3.d)\r\n");
+  /* L'autotest execute le reseau : il n'a pas sa place dans le temoin */
+  printf("MODE TEMOIN : inference desactivee (TP3 3.d)\r\n");
 #else
-  /* Verification du portage : les vecteurs de reference ont ete calcules par
-     onnxruntime sur PC. Si cet autotest echoue, les poids ou la
-     normalisation ne correspondent pas au modele entraine. */
-  {
-    int echecs = ia_autotest();
-
-    if (echecs == 0)
-    {
-      printf("Autotest du modele : OK (portage C fidele a l'ONNX)\r\n");
-    }
-    else
-    {
-      printf("Autotest du modele : %d ECHEC(S) - portage incorrect !\r\n", echecs);
-    }
-  }
+  /* Vecteurs de test du notebook : la carte doit retrouver les probabilites
+     de Keras. C'est la preuve que le modele embarque est le bon. */
+  meteo_ia_autotest();
 #endif
-
-  printf("Modele : %d entrees, %d classes\r\n", IA_NB_ENTREES, IA_NB_CLASSES);
 
   while (1)
   {
@@ -194,14 +159,7 @@ void partie4_lancer(void)
     printf("<Lecture Interface Capteurs>\r\n");
     capteurs_lire(&mesures);
 
-    /* Le modele attend temperature, humidite, pression dans cet ordre */
-    entrees[0] = mesures.sht40_temp_c.valeur;
-    entrees[1] = mesures.sht40_humidite_rh.valeur;
-    entrees[2] = mesures.df_pression_hpa.valeur;
-
-    if (!mesures.sht40_temp_c.valide ||
-        !mesures.sht40_humidite_rh.valide ||
-        !mesures.df_pression_hpa.valide)
+    if (!meteo_entrees_construire(&mesures, HAL_GetTick(), entrees, &info))
     {
       printf("  Capteurs incomplets, pas de classification ce cycle\r\n");
       leds_eteindre_tout();
@@ -214,65 +172,54 @@ void partie4_lancer(void)
     printf("  entrees : T=%s degC", texte);
     format_float(entrees[1], texte, sizeof(texte));
     printf("  RH=%s %%", texte);
-    format_float(entrees[2], texte, sizeof(texte));
-    printf("  P=%s hPa\r\n", texte);
+    format_float(info.pression_mesuree_hpa, texte, sizeof(texte));
+    printf("  P mesuree=%s", texte);
+    format_float(info.pression_mer_hpa, texte, sizeof(texte));
+    printf("  P mer=%s hPa", texte);
+    format_float(info.tendance_3h_hpa, texte, sizeof(texte));
+    printf("  dP3h=%s%s\r\n", texte,
+           info.tendance_disponible ? "" : " (moins de 3 h d'historique)");
 
     /* --- Inference : LED BLEUE -------------------------------------------*/
     leds_eteindre_tout();
     led_allumer(COULEUR_BLEUE);
 
 #if TEMOIN_SANS_IA
-    /* Programme temoin du §3.d : on ne lance pas le reseau. Tout le reste
-       du cycle est rigoureusement identique, de sorte que la difference de
-       courant mesuree au jumper n'est imputable qu'a l'inference. */
     printf("<Temoin : inference non executee>\r\n");
+    (void)probabilites; (void)classe; (void)classe_arbre; (void)duree_us;
+    (void)cycles_ia; (void)cycles_arbre; (void)debut; (void)i;
 #else
+    debut = DWT->CYCCNT;
+    if (meteo_ia_classer(entrees, probabilites, &classe, &duree_us) != 0)
     {
-      float probabilites[IA_NB_CLASSES];
-      int i;
-      uint32_t debut = DWT->CYCCNT;
-      int classe = ia_predire(entrees, probabilites);
-      uint32_t cycles = DWT->CYCCNT - debut;
-
-      printf("<Inference IA> classe = %s\r\n", ia_noms_classes[classe]);
-
-      for (i = 0; i < IA_NB_CLASSES; i++)
-      {
-        format_float(probabilites[i] * 100.0f, texte, sizeof(texte));
-        printf("    %-24s %s %%\r\n", ia_noms_classes[i], texte);
-      }
-
-      format_float(cycles_vers_us(cycles), texte, sizeof(texte));
-      printf("    duree : %lu cycles = %s us\r\n", (unsigned long)cycles, texte);
-
-      /* --- Reference deterministe -----------------------------------------
-         Le polycopie du module (§2.5) pose la question : le reseau apporte-t-il
-         un benefice clair face a une methode deterministe ? On ne repond pas
-         par une opinion, on mesure. L'arbre resout le meme probleme, entraine
-         sur les memes donnees et evalue sur le meme jeu de test, avec au plus
-         5 comparaisons de flottants contre 208 MAC et 4 exponentielles.
-         Ecart d'exactitude mesure hors ligne : 0,0031 point en faveur du
-         reseau. */
-      {
-        uint32_t debut_arbre = DWT->CYCCNT;
-        int classe_arbre = arbre_predire(entrees);
-        uint32_t cycles_arbre = DWT->CYCCNT - debut_arbre;
-
-        printf("<Reference arbre> classe = %s\r\n",
-               arbre_noms_classes[classe_arbre]);
-        format_float(cycles_vers_us(cycles_arbre), texte, sizeof(texte));
-        printf("    duree : %lu cycles = %s us\r\n",
-               (unsigned long)cycles_arbre, texte);
-
-        if (cycles_arbre > 0u)
-        {
-          printf("    le reseau coute %lu fois plus de cycles\r\n",
-                 (unsigned long)(cycles / cycles_arbre));
-        }
-        printf("    accord des deux methodes : %s\r\n",
-               (classe_arbre == classe) ? "oui" : "non");
-      }
+      printf("  Erreur d'inference\r\n");
+      attendre_ms(PERIODE_CYCLE_MS);
+      continue;
     }
+    cycles_ia = DWT->CYCCNT - debut;
+
+    printf("<Inference IA> classe = %s (reseau seul : %lu us)\r\n",
+           METEO_CLASS_NAMES[classe], (unsigned long)duree_us);
+    for (i = 0; i < METEO_NB_CLASSES; i++)
+    {
+      format_float(probabilites[i] * 100.0f, texte, sizeof(texte));
+      printf("    %-16s %s %%\r\n", METEO_CLASS_NAMES[i], texte);
+    }
+
+    /* --- Reference deterministe, sur les memes entrees ----------------- */
+    debut = DWT->CYCCNT;
+    classe_arbre = arbre_predire(entrees);
+    cycles_arbre = DWT->CYCCNT - debut;
+
+    printf("<Reference arbre> classe = %s\r\n", METEO_CLASS_NAMES[classe_arbre]);
+    printf("    cycles : reseau %lu, arbre %lu",
+           (unsigned long)cycles_ia, (unsigned long)cycles_arbre);
+    if (cycles_arbre > 0u)
+    {
+      printf(" -> le reseau coute %lu fois plus", (unsigned long)(cycles_ia / cycles_arbre));
+    }
+    printf("\r\n    accord des deux methodes : %s\r\n",
+           (classe_arbre == classe) ? "oui" : "non");
 #endif
 
     /* --- Attente : LED VERTE ---------------------------------------------*/

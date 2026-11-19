@@ -24,11 +24,50 @@ extern "C" {
  *    4 : TP3 - inference du reseau de neurones meteo sur les capteurs reels
  *    5 : TP3 - comparaison Cloud (ThingSpeak) contre Edge, avec latences
  *  Changer la valeur puis recompiler (ou : make PARTIE=4 en ligne de commande)
- *  Programme temoin du TP3 §3.d : make PARTIE=4 TEMOIN=1
  * ==========================================================================*/
 #ifndef PARTIE_TP
 #define PARTIE_TP   4
 #endif
+
+/* ============================================================================
+ *  TP3 §3.d - MESURE DE CONSOMMATION (partie 4 uniquement)
+ *    MESURE_CONSO   1 : LEDs et console coupees, fenetres d'une seconde
+ *    TEMOIN_SANS_IA 1 : programme temoin, identique mais sans le modele
+ *  Les deux programmes a comparer au jumper d'alimentation :
+ *    MESURE_CONSO 1 + TEMOIN_SANS_IA 0   puis   MESURE_CONSO 1 + TEMOIN_SANS_IA 1
+ *  En ligne de commande : make PARTIE=4 CONSO=1 [TEMOIN=1]
+ *  Remettre les deux a 0 pour le fonctionnement normal.
+ * ==========================================================================*/
+#ifndef MESURE_CONSO
+#define MESURE_CONSO     0
+#endif
+
+#ifndef TEMOIN_SANS_IA
+#define TEMOIN_SANS_IA   0
+#endif
+
+/* meteo_ia.c appelle cet interrupteur AVEC_IA : il est derive du precedent
+   pour qu'un seul reglage pilote le programme temoin. */
+#if TEMOIN_SANS_IA
+#define AVEC_IA          0
+#else
+#define AVEC_IA          1
+#endif
+
+/* ============================================================================
+ *  TP3 - PRESSION RAMENEE AU NIVEAU DE LA MER
+ *  Le modele est entraine sur la pression de Meteostat, ramenee au niveau de
+ *  la mer ; le LPS22DF mesure la pression a son altitude, environ 28 hPa de
+ *  moins a 235 m. Sans correction, le modele voit une depression permanente
+ *  et predit de la pluie.
+ *    ALTITUDE_CARTE_M    : 235 m au campus du Bourget-du-Lac (aeroport de
+ *                          Chambery voisin), + 3 m par etage.
+ *    OFFSET_PRESSION_HPA : calibration du capteur, par comparaison avec le
+ *                          QNH de la station LFLB a la meme heure.
+ *  Memes valeurs a reporter dans TP3_IA/matlab/ThingSpeak_MeteoAnalysis.m.
+ * ==========================================================================*/
+#define ALTITUDE_CARTE_M      235.0f
+#define OFFSET_PRESSION_HPA   0.0f
 
 /* ---------------------------------------------------------------------------
  *  LEDs utilisateur de la NUCLEO-N657X0-Q (source : BSP ST stm32n6xx_nucleo.h)
