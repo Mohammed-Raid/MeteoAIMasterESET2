@@ -23,14 +23,24 @@ marchent en même temps, quel que soit le réseau de la salle.
    en a une.
 3. `ncpa.cpl` → clic droit **Wi-Fi** → *Propriétés* → *Partage* : case
    cochée, connexion domestique **Ethernet**.
-4. La carte perd son programme hors tension : le recharger. Dans
-   `Core/Inc/main.h`, ligne 29, `#define PARTIE_TP 5`, puis dans CubeIDE
-   *Build* (marteau) et *Run*. Les clés ThingSpeak sont lues dans
-   `config_cloud_local.h`, déjà en place sur ce PC.
-5. Docklight sur **COM3, 115200**. CubeIDE charge par le ST-LINK : Docklight
-   peut rester ouvert.
-6. Relever l'adresse sur la console, `adresse IP : 192.168.137.x` (elle
-   change à chaque démarrage), et l'ouvrir dans le navigateur.
+4. La carte perd son programme hors tension : le recharger, **au moins
+   5 minutes avant de passer**. Dans PowerShell, depuis le dossier du projet :
+
+   ```
+   powershell -ExecutionPolicy Bypass -File outils\demo.ps1
+   ```
+
+   Le script charge la partie 5 (déjà compilée avec les clés, dans `build/`),
+   trouve l'adresse de la carte et ouvre sa page dans le navigateur.
+   Testé le 19/11/2026 : 18 s. Le premier verdict Cloud est arrivé environ
+   2 min 30 après, d'où les 5 minutes d'avance.
+5. Docklight sur **COM3, 115200** pour montrer la console. Le chargement
+   passe par le ST-LINK : Docklight peut rester ouvert.
+
+Plan B si le script échoue : dans `Core/Inc/main.h`, ligne 29,
+`#define PARTIE_TP 5`, puis CubeIDE *Build* (marteau) et *Run*, et ouvrir
+l'adresse `adresse IP : 192.168.137.x` lue sur la console. Cette voie n'a
+pas été testée avec la partie 5.
 
 ## Déroulé (ce qu'on montre, dans l'ordre)
 
@@ -51,10 +61,10 @@ toujours cochée.
 
 | Symptôme | Que faire |
 | --- | --- |
-| Pas d'`adresse IP` sur la console | partage pas actif : refaire l'étape 3, attendre une minute, sinon relancer *Run* (pas le bouton RESET : en mode développement, il efface le programme) |
+| Le script dit « partage de connexion : PAS ACTIF » ou ne trouve pas l'adresse | refaire l'étape 3, puis relancer le script (pas le bouton RESET : en mode développement, il efface le programme) |
+| Le script dit « la carte ne répond pas » | débrancher et rebrancher l'USB, vérifier le cavalier JP2, relancer |
 | `statut HTTP 302`, `redirige vers` | le Wi-Fi du PC n'a pas passé la page de connexion : l'ouvrir dans le navigateur |
 | `resolution DNS impossible` | le PC n'a pas Internet : vérifier son Wi-Fi |
 | `Talkback vide` en boucle, verdict qui vieillit | le script MATLAB ne répond pas : *Apps → MATLAB Analysis → Meteo IA Cloud → Run* juste avant de montrer |
 | Page « Carte injoignable » | mauvaise adresse : relire `adresse IP` sur la console |
-| CubeIDE ne charge pas | débrancher et rebrancher l'USB, relancer *Run* |
 | Rien ne marche côté réseau | montrer la partie locale (capteurs, Edge, arbre) et les captures de la veille |
