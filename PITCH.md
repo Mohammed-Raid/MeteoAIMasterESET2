@@ -26,13 +26,13 @@ tableau de bord est servi par le STM32 lui-même, pas par un service externe.
 
 > « Cette page n'est hébergée nulle part. C'est la carte qui la sert. »
 
-**Le geste à faire, vers 2:20** : couper le **Wi-Fi du PC** en plein pitch,
-pas le câble de la carte. La carte est branchée sur le PC, qui lui partage
-sa connexion : la page arrive par ce câble, Internet par le Wi-Fi. Wi-Fi
-coupé, la colonne Cloud tombe, la page reste, l'inférence locale continue en
-100 µs. Rallumer le Wi-Fi. C'est la démonstration de la thèse du module en
-cinq secondes. Débrancher le câble, lui, couperait aussi la page. Voir
-`DEMO.md`.
+**Le geste à faire, vers 2:20** : couper Internet en plein pitch. Carte sur
+la switch de la salle : débrancher son câble RJ45 et montrer la console
+(Docklight), où l'inférence locale continue en 100 µs pendant que l'envoi
+vers ThingSpeak échoue ; la page, elle, se fige. Carte branchée sur le PC qui
+partage sa connexion : couper le Wi-Fi du PC, la page reste et seule la
+colonne Cloud tombe. Rebrancher. C'est la démonstration de la thèse du module
+en cinq secondes. Voir `DEMO.md`.
 
 > « Sept capteurs MEMS lus en I2C. Température, humidité et pression
 > partent dans un réseau de neurones entraîné sur dix ans de relevés de

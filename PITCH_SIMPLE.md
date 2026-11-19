@@ -61,10 +61,12 @@ Montrer le bas de l'image.
 > « Même verdict des deux côtés. Mais la carte est environ **4 000 fois
 > plus rapide**. »
 
-**Le geste** : couper le Wi-Fi du PC.
+**Le geste** : couper Internet. Carte sur la switch : débrancher le câble
+RJ45 de la carte et montrer **Docklight**. Carte sur le PC : couper le Wi-Fi
+du PC. Détails dans `DEMO.md`.
 
 > « Je coupe Internet. Le Cloud ne répond plus. La carte, elle, continue de
-> décider. » *(Rallumer le Wi-Fi.)*
+> décider. » *(Rebrancher.)*
 
 ## 2:30 – 3:00 · La leçon (B)
 

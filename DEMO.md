@@ -1,46 +1,62 @@
 # Fiche de démo — ETRS923, TP3
 
-La carte branchée sur le PC, le PC qui partage son Wi-Fi : c'est le montage
-testé le 19/11/2026, et le seul où la page de la carte et ThingSpeak
-marchent en même temps, quel que soit le réseau de la salle.
+Deux montages possibles :
+
+- **A. La carte sur la switch de la salle** (prévu). Le réseau de l'école
+  n'a pas été testé : il peut ne pas donner d'adresse à la carte, avoir une
+  page de connexion, ou imposer un proxy. Le script le dit tout de suite.
+- **B. La carte branchée sur le PC**, qui partage son Wi-Fi. C'est le montage
+  testé le 19/11/2026 : page et ThingSpeak marchent. C'est le plan B si A
+  échoue.
 
 ## La veille au soir (10 min)
 
-- [ ] Appliquer le réglage qui empêche Windows de couper le Wi-Fi pendant le
-      partage (PowerShell **administrateur**, voir `TP3_IA/THINGSPEAK.md`) :
-      `New-ItemProperty -Path 'HKLM:\SOFTWARE\Policies\Microsoft\Windows\WcmSvc\GroupPolicy' -Name fMinimizeConnections -PropertyType DWord -Value 0 -Force`,
-      puis redémarrer le PC.
 - [ ] Captures de secours, prises pendant que tout marche : la console avec
       `envoi ThingSpeak : ok` et `[CLOUD] ...`, le tableau de bord, les
       canaux *Mesures STm32* et *Meteo IA Cloud*, le TalkBack.
-- [ ] PC chargé, câble USB et câble RJ45 dans le sac.
+- [ ] Pour le montage B seulement : le réglage qui empêche Windows de couper
+      le Wi-Fi pendant le partage (PowerShell **administrateur**, voir
+      `TP3_IA/THINGSPEAK.md`), puis redémarrer le PC.
+- [ ] PC chargé, câble USB, **deux** câbles RJ45 (carte et PC) dans le sac.
 
-## Installation en salle (5 min)
+## Installation en salle, montage A : la switch (5 min)
 
-1. Carte : cavalier **JP2 (BOOT1) en position 2**, USB ST-LINK et câble RJ45
-   **branchés sur le PC**, pas sur la prise murale.
-2. PC connecté au Wi-Fi de l'école, en passant la page de connexion s'il y
-   en a une.
-3. `ncpa.cpl` → clic droit **Wi-Fi** → *Propriétés* → *Partage* : case
-   cochée, connexion domestique **Ethernet**.
-4. La carte perd son programme hors tension : le recharger, **au moins
-   5 minutes avant de passer**. Dans PowerShell, depuis le dossier du projet :
+1. Carte : cavalier **JP2 (BOOT1) en position 2**, câble USB sur le PC,
+   câble RJ45 sur la **switch**.
+2. PC : **partage de connexion désactivé** (`ncpa.cpl` → clic droit
+   **Wi-Fi** → *Propriétés* → *Partage* : case décochée). Sinon le PC
+   distribue des adresses à toute la salle.
+3. PC branché lui aussi **sur la même switch** en RJ45 : en Wi-Fi, il est
+   souvent sur un autre réseau et ne verrait pas la page de la carte.
+4. **Fermer Docklight** (le script lit la console), puis, **au moins
+   5 minutes avant de passer**, dans PowerShell depuis le dossier du projet :
 
    ```
    powershell -ExecutionPolicy Bypass -File outils\demo.ps1
    ```
 
-   Le script charge la partie 5 (déjà compilée avec les clés, dans `build/`),
-   trouve l'adresse de la carte et ouvre sa page dans le navigateur.
-   Testé le 19/11/2026 : 18 s. Le premier verdict Cloud est arrivé environ
-   2 min 30 après, d'où les 5 minutes d'avance.
-5. Docklight sur **COM3, 115200** pour montrer la console. Le chargement
-   passe par le ST-LINK : Docklight peut rester ouvert.
+   Le script charge la partie 5 (compilée avec les clés, dans `build/`),
+   lit sur la console l'adresse obtenue et le résultat du premier envoi vers
+   ThingSpeak, puis ouvre la page de la carte.
+5. Lire ce qu'il affiche sous **« Acces a ThingSpeak »** :
+   - `envoi ThingSpeak : ok` : tout va bien, rouvrir Docklight sur **COM3,
+     115200** ;
+   - toute autre ligne : le script dit pourquoi. Passer au montage B.
 
-Plan B si le script échoue : dans `Core/Inc/main.h`, ligne 29,
+Le premier verdict Cloud est arrivé environ 2 min 30 après le chargement le
+19/11/2026, d'où les 5 minutes d'avance.
+
+## Installation en salle, montage B : le partage de connexion
+
+1. Câble RJ45 de la carte **sur le PC**. PC en Wi-Fi sur le réseau de l'école,
+   page de connexion passée s'il y en a une.
+2. `ncpa.cpl` → clic droit **Wi-Fi** → *Propriétés* → *Partage* : case
+   cochée, connexion domestique **Ethernet**.
+3. Fermer Docklight, relancer `outils\demo.ps1`.
+
+Dernier recours si le script échoue : dans `Core/Inc/main.h`, ligne 29,
 `#define PARTIE_TP 5`, puis CubeIDE *Build* (marteau) et *Run*, et ouvrir
-l'adresse `adresse IP : 192.168.137.x` lue sur la console. Cette voie n'a
-pas été testée avec la partie 5.
+l'adresse `adresse IP : ...` lue sur la console. Pas testé avec la partie 5.
 
 ## Déroulé (ce qu'on montre, dans l'ordre)
 
@@ -51,20 +67,32 @@ pas été testée avec la partie 5.
 | 0:50 | `Edge : Clair 105 us`, `Arbre : Clair` | réseau 4-32-16-4 sur le Cortex-M55, l'arbre fait presque aussi bien en 190 fois moins de cycles |
 | 1:30 | `envoi ThingSpeak : ok`, `[CLOUD] Clair (49 %)` | même modèle dans MATLAB sur ThingSpeak, verdict renvoyé par TalkBack |
 | 2:00 | ligne `Cloud : ... aller-retour HTTP ~450 ms` | **105 µs contre ~450 ms**, environ 4 000 fois plus lent, pour le même verdict |
-| 2:20 | couper le **Wi-Fi du PC** | la colonne Cloud tombe, la page et l'inférence locale continuent ; rallumer |
+| 2:20 | couper Internet (voir ci-dessous) | le Cloud tombe, la carte continue de décider |
 
-Le geste de 2:20 n'a pas été répété : le tester une fois sur place avant de
-passer. Après avoir rallumé le Wi-Fi, vérifier que la case du partage est
-toujours cochée.
+Le geste de 2:20 dépend du montage. Il n'a pas été répété : le tester une
+fois sur place avant de passer.
+
+- **Montage A** : débrancher le câble RJ45 **de la carte**. La page se fige
+  (« Carte injoignable »), mais **Docklight** montre que la carte continue :
+  `Edge : Clair 105 us` à chaque cycle, et l'envoi vers ThingSpeak en erreur.
+  Montrer Docklight à ce moment-là, pas la page. Rebrancher.
+- **Montage B** : couper le **Wi-Fi du PC**. La page reste, la colonne Cloud
+  tombe, l'inférence locale continue. Rallumer le Wi-Fi et vérifier que la
+  case du partage est toujours cochée.
 
 ## Si ça coince
 
 | Symptôme | Que faire |
 | --- | --- |
-| Le script dit « partage de connexion : PAS ACTIF » ou ne trouve pas l'adresse | refaire l'étape 3, puis relancer le script (pas le bouton RESET : en mode développement, il efface le programme) |
-| Le script dit « la carte ne répond pas » | débrancher et rebrancher l'USB, vérifier le cavalier JP2, relancer |
-| `statut HTTP 302`, `redirige vers` | le Wi-Fi du PC n'a pas passé la page de connexion : l'ouvrir dans le navigateur |
-| `resolution DNS impossible` | le PC n'a pas Internet : vérifier son Wi-Fi |
+| « La carte n'a pas obtenu d'adresse » | le réseau de la salle ne lui en donne pas : montage B |
+| `302`, `redirige vers` | le réseau a une page de connexion : montage B |
+| `resolution DNS impossible` | pas d'accès Internet direct (proxy) : montage B |
+| `connexion refusee ou injoignable` | le réseau bloque le port 80 : montage B |
+| « le PC ne la joint pas » | le PC n'est pas sur le même réseau : le brancher sur la même switch |
+| « console COM3 : occupee » | fermer Docklight et relancer le script |
+| « la carte ne repond pas » | débrancher et rebrancher l'USB, vérifier le cavalier JP2, relancer |
 | `Talkback vide` en boucle, verdict qui vieillit | le script MATLAB ne répond pas : *Apps → MATLAB Analysis → Meteo IA Cloud → Run* juste avant de montrer |
-| Page « Carte injoignable » | mauvaise adresse : relire `adresse IP` sur la console |
 | Rien ne marche côté réseau | montrer la partie locale (capteurs, Edge, arbre) et les captures de la veille |
+
+Jamais le bouton RESET de la carte : en mode développement, il efface le
+programme. Relancer le script à la place.
