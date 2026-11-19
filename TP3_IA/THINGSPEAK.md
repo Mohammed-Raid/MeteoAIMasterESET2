@@ -207,16 +207,20 @@ Sur la console, toutes les 16 secondes :
 
 ```
 <Communication Reseau>
-  envoi ThingSpeak : ok en xxx ms
-[CLOUD] Nuageux (46 %), verdict de l'envoi precedent
+  envoi ThingSpeak : ok en 270 ms
+[CLOUD] Clair (49 %), nouveau verdict du script MATLAB
 <Comparaison Cloud / Edge>
-  Edge   : Nuageux   104.xx us (62xxx cycles)
+  Edge   : Clair     105.00 us (63001 cycles)
   Arbre  : Clair    (reference deterministe)
-  Cloud  : Nuageux (46 %), aller-retour HTTP xxx ms, verdict en retard d'un envoi (16 s)
+  Cloud  : Clair (49 %), il y a 0 s, aller-retour HTTP 469 ms
 ```
 
-Au premier envoi, la file Talkback est encore vide : c'est normal, le script
-MATLAB tourne après l'écriture, et son verdict arrive à l'envoi suivant.
+Le verdict du script arrive au mieux à l'envoi suivant : le script MATLAB
+tourne après l'écriture. Il ne répond pas non plus à chaque envoi : le
+19/11/2026, des verdicts à presque tous les cycles, mais aussi des trous de
+plusieurs minutes juste après la création du React. Entre deux verdicts, la
+console affiche `Talkback vide`, et la carte garde le dernier verdict avec
+son âge (`il y a 33 s`).
 
 ## Ce qu'il faut capturer pour le rapport
 

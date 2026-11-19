@@ -11,9 +11,10 @@
   *      classe la mesure et depose "METEO:<classe>:<confiance>" dans la file
   *      Talkback, que la carte relit (§2.d).
   *
-  *  Le verdict Cloud lu a un echange correspond a la mesure envoyee a
-  *  l'echange precedent : le script MATLAB est declenche APRES l'ecriture.
-  *  Le retard reel du Cloud est donc d'un cycle d'envoi, soit 16 a 32 s.
+  *  Le verdict Cloud lu a un echange correspond au mieux a la mesure envoyee
+  *  a l'echange precedent : le script MATLAB est declenche APRES l'ecriture.
+  *  Il ne repond pas non plus a chaque envoi : le dernier verdict est donc
+  *  garde et affiche avec son age.
   *
   *  L'arbre de decision deterministe tourne aussi, pour garder sous les yeux
   *  ce que couterait la solution la plus sobre.
@@ -53,6 +54,42 @@
 static float cycles_vers_us(uint32_t cycles)
 {
   return (float)cycles * 1000000.0f / (float)SystemCoreClock;
+}
+
+/* Dernier verdict recu du Cloud. Le script MATLAB ne repond pas a chaque
+   envoi : constate le 19/11/2026, des verdicts a presque tous les cycles,
+   mais aussi des trous de plusieurs minutes juste apres la creation du
+   React. La commande
+   Talkback etant retiree de la file a la lecture, on garde le verdict et
+   l'heure de sa reception, au lieu de l'effacer au cycle suivant. */
+static int dernier_verdict_classe = -1;      /* -1 : aucun verdict recu */
+static int dernier_verdict_confiance = 0;
+static uint32_t dernier_verdict_tick = 0;
+
+/* Libelle du dernier verdict avec son age, pour la console et le tableau
+   de bord : "Clair (49 %), il y a 32 s". */
+static void libelle_dernier_verdict(char *texte, int taille)
+{
+  uint32_t age_s;
+
+  if (dernier_verdict_classe < 0)
+  {
+    snprintf(texte, taille, "en attente du premier verdict");
+    return;
+  }
+  age_s = (HAL_GetTick() - dernier_verdict_tick) / 1000u;
+  if (age_s < 120u)
+  {
+    snprintf(texte, taille, "%s (%d %%), il y a %lu s",
+             METEO_CLASS_NAMES[dernier_verdict_classe],
+             dernier_verdict_confiance, (unsigned long)age_s);
+  }
+  else
+  {
+    snprintf(texte, taille, "%s (%d %%), il y a %lu min",
+             METEO_CLASS_NAMES[dernier_verdict_classe],
+             dernier_verdict_confiance, (unsigned long)(age_s / 60u));
+  }
 }
 
 /* Affiche une erreur Cloud, avec le statut HTTP quand le serveur a repondu :
@@ -244,16 +281,18 @@ static void tache_application(void *argument)
           if (meteo_talkback_lire(talkback, &classe_cloud, &confiance_cloud) &&
               (classe_cloud >= 0) && (classe_cloud < METEO_NB_CLASSES))
           {
-            snprintf(etat.classe_cloud, sizeof(etat.classe_cloud), "%s (%d %%)",
-                     METEO_CLASS_NAMES[classe_cloud], confiance_cloud);
-            printf("[CLOUD] %s (%d %%), verdict de l'envoi precedent\r\n",
+            dernier_verdict_classe = classe_cloud;
+            dernier_verdict_confiance = confiance_cloud;
+            dernier_verdict_tick = HAL_GetTick();
+            printf("[CLOUD] %s (%d %%), nouveau verdict du script MATLAB\r\n",
                    METEO_CLASS_NAMES[classe_cloud], confiance_cloud);
           }
           else
           {
-            snprintf(etat.classe_cloud, sizeof(etat.classe_cloud), "en attente");
-            printf("  Talkback vide : pas encore de verdict du Cloud\r\n");
+            printf("  Talkback vide : le script MATLAB n'a pas encore repondu\r\n");
           }
+          /* Dans les deux cas, on affiche le dernier verdict connu */
+          libelle_dernier_verdict(etat.classe_cloud, sizeof(etat.classe_cloud));
         }
         else
         {
@@ -276,10 +315,8 @@ static void tache_application(void *argument)
 
       if (etat.cloud_joignable)
       {
-        printf("  Cloud  : %s, aller-retour HTTP %lu ms, verdict en retard "
-               "d'un envoi (%u s)\r\n", etat.classe_cloud,
-               (unsigned long)etat.latence_cloud_ms,
-               (unsigned)(THINGSPEAK_PERIODE_MIN_MS / 1000u));
+        printf("  Cloud  : %s, aller-retour HTTP %lu ms\r\n",
+               etat.classe_cloud, (unsigned long)etat.latence_cloud_ms);
       }
     }
 
