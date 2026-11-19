@@ -55,6 +55,25 @@ static float cycles_vers_us(uint32_t cycles)
   return (float)cycles * 1000000.0f / (float)SystemCoreClock;
 }
 
+/* Affiche une erreur Cloud, avec le statut HTTP quand le serveur a repondu :
+   une cle invalide (400 ou 401) et une ecriture trop rapide (200, refusee)
+   ne se corrigent pas de la meme facon. */
+static void afficher_erreur_cloud(const char *quoi, int code)
+{
+  int statut = cloud_dernier_statut_http();
+
+  printf("  %-16s : %s", quoi, cloud_message_erreur(code));
+  if (statut != 0)
+  {
+    printf(" (statut HTTP %d)", statut);
+  }
+  printf("\r\n");
+  if (cloud_derniere_redirection()[0] != '\0')
+  {
+    printf("    redirige vers : %s\r\n", cloud_derniere_redirection());
+  }
+}
+
 /* ============================================================================
  *  Tache applicative
  * ==========================================================================*/
@@ -238,12 +257,12 @@ static void tache_application(void *argument)
         }
         else
         {
-          printf("  Talkback         : %s\r\n", cloud_message_erreur(code));
+          afficher_erreur_cloud("Talkback", code);
         }
       }
       else
       {
-        printf("  envoi ThingSpeak : %s\r\n", cloud_message_erreur(code));
+        afficher_erreur_cloud("envoi ThingSpeak", code);
       }
 
       /* --- 4. La comparaison, objet du TP3 §3.c ------------------------*/

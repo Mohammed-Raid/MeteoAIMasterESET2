@@ -30,10 +30,17 @@
 static char requete[TAILLE_REQUETE];
 static char reponse[TAILLE_REPONSE];
 
+/* Code de statut de la derniere reponse (200, 400, 401...), 0 si aucune */
+static int dernier_statut_http = 0;
+
+/* Destination d'une redirection (statut 3xx), vide sinon. Sur un reseau
+   d'etablissement, une redirection vers une page de connexion trahit un
+   portail captif qui intercepte le HTTP des appareils non enregistres. */
+static char derniere_redirection[96];
+
 /* ============================================================================
  *  Outils
  * ==========================================================================*/
-
 
 const char *cloud_message_erreur(int code)
 {
@@ -46,8 +53,68 @@ const char *cloud_message_erreur(int code)
     case CLOUD_ERREUR_CONNEXION:  return "connexion refusee ou injoignable";
     case CLOUD_ERREUR_ENVOI:      return "echec de l'envoi";
     case CLOUD_ERREUR_REPONSE:    return "reponse HTTP invalide";
+    case CLOUD_ECRITURE_REFUSEE:  return "ecriture refusee (moins de 15 s depuis la precedente ?)";
     default:                      return "erreur inconnue";
   }
+}
+
+int cloud_dernier_statut_http(void)
+{
+  return dernier_statut_http;
+}
+
+const char *cloud_derniere_redirection(void)
+{
+  return derniere_redirection;
+}
+
+/* Recopie la valeur de l'en-tete Location, quelle que soit sa casse */
+static void lire_redirection(const char *texte)
+{
+  const char *debut = strstr(texte, "\r\nLocation:");
+  int i;
+
+  if (debut == NULL)
+  {
+    debut = strstr(texte, "\r\nlocation:");
+  }
+  derniere_redirection[0] = '\0';
+  if (debut == NULL)
+  {
+    return;
+  }
+  debut += 11;
+  while (*debut == ' ')
+  {
+    debut++;
+  }
+  for (i = 0; (i < (int)sizeof(derniere_redirection) - 1) &&
+              (debut[i] != '\0') && (debut[i] != '\r'); i++)
+  {
+    derniere_redirection[i] = debut[i];
+  }
+  derniere_redirection[i] = '\0';
+}
+
+/* Lit le code de la ligne de statut "HTTP/1.x NNN ...", ou 0 si illisible */
+static int lire_statut_http(const char *texte)
+{
+  int statut = 0;
+  int i;
+
+  if (strncmp(texte, "HTTP/1.", 7) != 0 || texte[8] != ' ')
+  {
+    return 0;
+  }
+  for (i = 9; i < 12; i++)
+  {
+    if (texte[i] < '0' || texte[i] > '9')
+    {
+      return 0;
+    }
+    statut = statut * 10 + (texte[i] - '0');
+  }
+  return statut;
 }
 
 int cloud_est_configure(void)
@@ -73,6 +140,8 @@ static int echange_http(const char *chemin, char **corps, uint32_t *latence_ms)
   int resultat = CLOUD_OK;
 
   debut = HAL_GetTick();
+  dernier_statut_http = 0;
+  derniere_redirection[0] = '\0';
 
   hote = gethostbyname(THINGSPEAK_HOTE);
   if ((hote == NULL) || (hote->h_addr_list[0] == NULL))
@@ -146,10 +215,15 @@ static int echange_http(const char *chemin, char **corps, uint32_t *latence_ms)
     return CLOUD_ERREUR_REPONSE;
   }
 
-  if (strncmp(reponse, "HTTP/1.1 200", 12) != 0 &&
-      strncmp(reponse, "HTTP/1.0 200", 12) != 0)
+  /* ThingSpeak repond "HTTP/1.1" meme a une requete 1.0 : seul le code compte */
+  dernier_statut_http = lire_statut_http(reponse);
+  if (dernier_statut_http != 200)
   {
     resultat = CLOUD_ERREUR_REPONSE;
+  }
+  if (dernier_statut_http >= 300 && dernier_statut_http < 400)
+  {
+    lire_redirection(reponse);
   }
 
   /* Le corps commence apres la ligne vide qui termine les en-tetes */
@@ -201,11 +275,12 @@ int cloud_envoyer_mesures(const mesures_t *m, int classe_edge,
     return code;
   }
 
-  /* ThingSpeak repond l'identifiant de l'entree creee, ou "0" en cas de
-     rejet (cadence trop rapide, cle invalide). */
+  /* Statut 200 : ThingSpeak repond l'identifiant de l'entree creee, ou "0"
+     s'il refuse l'ecriture, en general parce que la precedente date de
+     moins de 15 s. Une cle invalide, elle, donne un statut 400. */
   if ((corps == NULL) || (corps[0] == '0') || (corps[0] == '\0'))
   {
-    return CLOUD_ERREUR_REPONSE;
+    return CLOUD_ECRITURE_REFUSEE;
   }
 
   return CLOUD_OK;

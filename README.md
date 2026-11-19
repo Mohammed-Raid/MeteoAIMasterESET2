@@ -198,6 +198,7 @@ Le package officiel STM32CubeN6 ne fournit ni FreeRTOS ni LwIP : ST livre Thread
 
 - **Ping vers la carte** : depuis un PC du même réseau, `ping <adresse_IP_affichée>`.
 - **Echo TCP** : `nc <adresse_IP> 7` (ou PuTTY en mode Raw sur le port 7). Le texte tapé est renvoyé.
+- **Réseau à page de connexion** : sur un réseau de résidence Wifirst, la carte obtient une adresse et résout google.com, mais le ping n'aboutit pas : le portail captif bloque tout appareil qui ne s'est pas identifié. Ce n'est pas un défaut du code. Voir `TP3_IA/THINGSPEAK.md` pour les solutions.
 
 ## Arborescence
 

@@ -24,10 +24,19 @@
 #define CLOUD_ERREUR_SOCKET     -3
 #define CLOUD_ERREUR_CONNEXION  -4
 #define CLOUD_ERREUR_ENVOI      -5
-#define CLOUD_ERREUR_REPONSE    -6
+#define CLOUD_ERREUR_REPONSE    -6   /* statut HTTP autre que 200 */
+#define CLOUD_ECRITURE_REFUSEE  -7   /* statut 200, mais ecriture refusee */
 
 /* Vrai si une cle d'ecriture a ete fournie dans config_cloud_local.h */
 int cloud_est_configure(void);
+
+/* Code de statut HTTP de la derniere reponse, 0 si aucune. Pour un envoi,
+   400 signale une cle invalide ; pour le TalkBack, 401 un mauvais
+   identifiant ou une mauvaise cle. */
+int cloud_dernier_statut_http(void);
+
+/* Destination de la derniere redirection (statut 3xx), chaine vide sinon */
+const char *cloud_derniere_redirection(void);
 
 /**
   * @brief  Envoie les mesures et le resultat Edge vers ThingSpeak.

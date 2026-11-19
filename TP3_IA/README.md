@@ -36,7 +36,10 @@ exécuté faute de compte ou de matériel ; **à faire** = absent.
 | §3.d — mesure du courant | **à faire** | manipulation, avec les encadrants |
 
 Ce qui manque pour le §2 : un compte ThingSpeak, MATLAB Online, et la carte
-branchée sur un réseau qui lui donne accès à Internet.
+branchée sur un réseau qui lui donne accès à Internet **sans page de
+connexion**. Le client de la carte a été testé jusqu'au serveur : sur un
+réseau de résidence Wifirst, il reçoit une redirection vers le portail du
+réseau au lieu de la réponse de ThingSpeak (voir [THINGSPEAK.md](THINGSPEAK.md)).
 
 ## Le modèle
 

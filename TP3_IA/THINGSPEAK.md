@@ -135,9 +135,39 @@ classification dans le Cloud.
    Le binaire ainsi compilé contient tes clés en clair : **ne pas le copier
    dans `binaires/`**, qui est poussé sur GitHub. Les dossiers de compilation
    `build/` et `Debug/` sont, eux, ignorés par Git.
-3. Brancher le câble RJ45 sur un réseau qui donne accès à Internet. Sur le
-   réseau de l'université, la carte obtient bien une adresse et joint
-   Internet : le DHCP et le DNS y ont été vérifiés.
+3. Brancher le câble RJ45 sur un réseau qui donne accès à Internet **sans
+   page de connexion**. Voir la section suivante : c'est le piège le plus
+   probable.
+
+## Le piège : les réseaux à page de connexion
+
+Testé le 19/11/2026 sur le réseau filaire d'une résidence Wifirst. La carte
+obtient une adresse par DHCP et résout `api.thingspeak.com`, mais chaque
+requête HTTP reçoit :
+
+```
+  envoi ThingSpeak : reponse HTTP invalide (statut HTTP 302)
+    redirige vers : https://portal.wifirst.net/connect
+```
+
+C'est un **portail captif** : tant qu'un appareil ne s'est pas identifié sur
+la page de connexion, le réseau redirige tout son trafic web vers cette page.
+La carte n'a pas de navigateur, elle ne peut pas s'identifier. Ce n'est pas
+un défaut du code : la même requête, envoyée depuis un PC déjà connecté,
+reçoit bien la réponse de ThingSpeak.
+
+Trois solutions :
+
+- **Enregistrer la carte auprès du réseau.** La plupart des réseaux de
+  résidence permettent d'ajouter un appareil sans navigateur (console, TV)
+  par son adresse MAC, depuis l'espace client. Celle de la carte s'affiche au
+  démarrage : `[ETH] adresse MAC 00:80:E1:2E:61:54`.
+- **Partager la connexion du PC.** Le PC, déjà identifié en Wi-Fi, partage sa
+  connexion sur son port Ethernet (*Paramètres → Réseau et Internet → Point
+  d'accès mobile*, ou le partage de connexion de la carte Wi-Fi), et la carte
+  se branche sur le PC.
+- **Un autre réseau** : une box à la maison, ou une prise de salle de TP
+  sans portail.
 
 Sur la console, toutes les 16 secondes :
 
@@ -167,9 +197,11 @@ MATLAB tourne après l'écriture, et son verdict arrive à l'envoi suivant.
 | Symptôme | Cause probable |
 | --- | --- |
 | `envoi ThingSpeak : cle d'API absente` | `config_cloud_local.h` encore commenté, ou pas recompilé |
-| `envoi ThingSpeak : reponse HTTP invalide` | mauvaise Write Key, ou envoi moins de 15 s après le précédent |
+| `reponse HTTP invalide (statut HTTP 302)` suivi de `redirige vers` | portail captif du réseau : voir la section précédente |
+| `envoi ThingSpeak : reponse HTTP invalide (statut HTTP 400)` | mauvaise Write Key |
+| `envoi ThingSpeak : ecriture refusee` | envoi moins de 15 s après le précédent |
 | `resolution DNS impossible` | pas d'accès Internet sur ce réseau |
-| `Talkback : reponse HTTP invalide` | mauvais TalkBack ID ou mauvaise clé |
+| `Talkback : reponse HTTP invalide (statut HTTP 401)` | mauvais TalkBack ID ou mauvaise clé |
 | `Talkback vide` qui ne change jamais | React pas créé, ou script MATLAB en erreur : regarder sa sortie |
 | Le script répond toujours « Pluie » | pression déjà corrigée envoyée, ou altitude différente entre carte et script |
 | `Poids absents` dans MATLAB | ne pas coller le script original, mais la version `_pret.m` |
