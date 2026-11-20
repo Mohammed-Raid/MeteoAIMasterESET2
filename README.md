@@ -4,6 +4,12 @@ Projet unique couvrant le TP2 (interface capteurs et STM32) et la partie embarqu
 
 ![Schéma du projet : mesurer, décider sur la carte, décider dans le Cloud](docs/schema_projet.png)
 
+## Tableau de bord en ligne
+
+<a href="https://mohammed-raid.github.io/MeteoAIMasterESET2/"><img src="docs/qr_page_en_ligne.svg" width="180" alt="QR code vers le tableau de bord en ligne"></a>
+
+Page en ligne : <https://mohammed-raid.github.io/MeteoAIMasterESET2/> (GitHub Pages, fichier `docs/index.html`). Elle lit les canaux ThingSpeak publics : verdicts de la carte et du Cloud, courbes des capteurs. Elle se met à jour toutes les 15 s, tant que la carte envoie ses mesures à ThingSpeak. Scanner le QR code pour la suivre sur un téléphone.
+
 ## Correspondance entre les sujets et le dépôt
 
 | Sujet | Demandé | Où | Partie |
