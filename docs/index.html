@@ -1,0 +1,289 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Station météo IA en direct</title>
+<!--
+  Tableau de bord EN LIGNE du projet ETRS923 (TP3, Cloud versus Edge).
+
+  La page locale, servie par la carte, n'est visible que sur le reseau de la
+  carte. Celle-ci est hebergee par GitHub Pages et lit directement les deux
+  canaux ThingSpeak, publics, depuis le navigateur : n'importe qui peut
+  suivre la carte en direct, sur un telephone, par le QR code.
+
+    - canal "Mesures STm32" : ecrit par la carte toutes les 16 s
+        field1 temperature, field2 humidite, field3 pression mesuree,
+        field4 classe Edge, field5 confiance Edge (%), field6 duree Edge (us)
+    - canal "Meteo IA Cloud" : ecrit par le script MATLAB
+        field1 classe, field2 confiance (%), field3 inference (ms),
+        field4 age de la mesure (s), field5..8 probabilites (%)
+
+  Aucune cle d'API dans cette page : elle ne lit que des canaux publics.
+-->
+<style>
+  :root {
+    --bg: #f6f7f9; --card: #ffffff; --line: #e3e6eb; --fg: #111827; --dim: #6b7280;
+    --edge: #059669; --cloud: #2563eb;
+    --clair: #f59e0b; --nuageux: #94a3b8; --pluie: #3b82f6; --neige: #67e8f9;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #0e1116; --card: #171b22; --line: #2a303a; --fg: #e6edf3; --dim: #8b949e;
+      --edge: #3fb950; --cloud: #58a6ff;
+    }
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--fg);
+         font: 15px/1.5 "Segoe UI", system-ui, -apple-system, Roboto, sans-serif; }
+  main { max-width: 1100px; margin: 0 auto; padding: 20px 16px 40px; }
+  h1 { font-size: 24px; margin: 0; }
+  .sub { color: var(--dim); margin: 2px 0 18px; }
+  .live { display: inline-block; width: 9px; height: 9px; border-radius: 50%;
+          background: #ef4444; margin-right: 6px; animation: pulse 1.6s infinite; }
+  @keyframes pulse { 50% { opacity: .25; } }
+  .grid { display: grid; gap: 14px; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); }
+  .card { background: var(--card); border: 1px solid var(--line); border-radius: 14px; padding: 16px; }
+  .lab { font-size: 12px; letter-spacing: .08em; text-transform: uppercase; color: var(--dim); }
+  .big { font-size: 34px; font-weight: 800; margin: 4px 0 0; }
+  .edge .big { color: var(--edge); } .cloud .big { color: var(--cloud); }
+  .det { color: var(--dim); font-variant-numeric: tabular-nums; }
+  .bars div { display: grid; grid-template-columns: 80px 1fr 44px; align-items: center; gap: 8px; margin-top: 6px; font-size: 14px; }
+  .bars span.b { height: 10px; border-radius: 5px; background: var(--line); overflow: hidden; }
+  .bars span.b i { display: block; height: 100%; }
+  .bars span.p { text-align: right; font-variant-numeric: tabular-nums; }
+  h2 { font-size: 13px; letter-spacing: .08em; text-transform: uppercase; color: var(--dim); margin: 26px 0 8px; }
+  .duel { font-size: 18px; }
+  .duel b { font-size: 26px; }
+  .lane { display: grid; grid-template-columns: 64px 1fr; align-items: center; gap: 10px; margin: 6px 0; }
+  .lane svg { width: 100%; height: 26px; display: block; border-radius: 6px; background: var(--line); }
+  .axe { display: flex; justify-content: space-between; color: var(--dim); font-size: 12px; margin-left: 74px; }
+  .leg { display: flex; gap: 14px; flex-wrap: wrap; color: var(--dim); font-size: 13px; margin-top: 8px; }
+  .leg i { display: inline-block; width: 11px; height: 11px; border-radius: 3px; margin-right: 5px; vertical-align: -1px; }
+  .chart svg { width: 100%; height: 110px; display: block; }
+  .chart .v { font-size: 22px; font-weight: 700; }
+  #qr { background: #fff; padding: 10px; border-radius: 10px; width: max-content; }
+  .qrbox { display: flex; gap: 16px; align-items: center; }
+  .note { color: var(--dim); font-size: 13px; }
+  .alerte { background: #fef3c7; color: #78350f; border-radius: 10px; padding: 12px 14px; margin-bottom: 14px; display: none; }
+  footer { margin-top: 28px; color: var(--dim); font-size: 13px; }
+  a { color: var(--cloud); }
+</style>
+</head>
+<body>
+<main>
+  <h1>Station météo IA, en direct</h1>
+  <div class="sub"><span class="live"></span>Carte STM32N657 + capteurs IKS4A1 · le même réseau de neurones sur la carte (Edge) et dans le Cloud · <span id="maj">connexion…</span></div>
+
+  <div class="alerte" id="alerte"></div>
+
+  <div class="grid">
+    <div class="card edge">
+      <div class="lab">Sur la carte (Edge)</div>
+      <div class="big" id="e-classe">—</div>
+      <div class="det" id="e-det">—</div>
+    </div>
+    <div class="card cloud">
+      <div class="lab">Dans le Cloud (ThingSpeak + MATLAB)</div>
+      <div class="big" id="c-classe">—</div>
+      <div class="det" id="c-det">—</div>
+      <div class="bars" id="c-bars"></div>
+    </div>
+  </div>
+
+  <h2>Qui voit le changement de temps en premier ?</h2>
+  <div class="card">
+    <div class="duel" id="duel">En attente d'un changement de verdict sur la carte. Soufflez sur le capteur : la carte verra un nuage.</div>
+    <div class="note" id="duel-note"></div>
+  </div>
+
+  <h2>Les verdicts, minute par minute</h2>
+  <div class="card">
+    <div class="lane"><b style="color:var(--edge)">Carte</b><svg id="lane-e" preserveAspectRatio="none"></svg></div>
+    <div class="lane"><b style="color:var(--cloud)">Cloud</b><svg id="lane-c" preserveAspectRatio="none"></svg></div>
+    <div class="axe"><span id="axe-debut">—</span><span>maintenant</span></div>
+    <div class="leg">
+      <span><i style="background:var(--clair)"></i>Clair</span>
+      <span><i style="background:var(--nuageux)"></i>Nuageux</span>
+      <span><i style="background:var(--pluie)"></i>Pluie</span>
+      <span><i style="background:var(--neige)"></i>Neige</span>
+      <span id="accord"></span>
+    </div>
+  </div>
+
+  <h2>Les capteurs</h2>
+  <div class="grid">
+    <div class="card chart"><div class="lab">Température</div><div class="v" id="v-t">—</div><svg id="g-t" preserveAspectRatio="none"></svg></div>
+    <div class="card chart"><div class="lab">Humidité</div><div class="v" id="v-h">—</div><svg id="g-h" preserveAspectRatio="none"></svg></div>
+    <div class="card chart"><div class="lab">Pression mesurée</div><div class="v" id="v-p">—</div><svg id="g-p" preserveAspectRatio="none"></svg></div>
+  </div>
+
+  <h2>Suivre sur votre téléphone</h2>
+  <div class="card qrbox">
+    <div id="qr"></div>
+    <div>
+      <div id="url" style="font-weight:600;word-break:break-all"></div>
+      <div class="note">Cette page n'est pas servie par la carte : elle lit les données que la carte envoie à ThingSpeak.
+        La page locale de la carte, elle, continue de marcher sans Internet.</div>
+    </div>
+  </div>
+
+  <footer>
+    ETRS923 · IA et objets connectés · Université Savoie Mont Blanc ·
+    <a href="https://github.com/Mohammed-Raid/MeteoAIMasterESET2">code source</a> ·
+    <a href="schema_projet.png">schéma du projet</a>
+  </footer>
+</main>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+<script>
+/* ---- Configuration -------------------------------------------------------- */
+const CANAL_MESURES = 3588729;   // "Mesures STm32", ecrit par la carte
+const CANAL_CLOUD   = 3588661;   // "Meteo IA Cloud", ecrit par MATLAB
+const NB_POINTS     = 240;       // ~65 min de mesures a raison d'une toutes les 16 s
+const PERIODE_MS    = 15000;     // ThingSpeak ne recoit rien de plus frequent
+
+const CLASSES = ["Clair", "Nuageux", "Pluie", "Neige"];
+const COULEURS = ["--clair", "--nuageux", "--pluie", "--neige"];
+const $ = id => document.getElementById(id);
+const couleur = c => getComputedStyle(document.documentElement).getPropertyValue(COULEURS[c]).trim();
+const heure = d => d.toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit", second: "2-digit" });
+
+/* Lit les derniers points d'un canal public. Un canal prive repond 400. */
+async function lireCanal(canal, n) {
+  const r = await fetch(`https://api.thingspeak.com/channels/${canal}/feeds.json?results=${n}`, { cache: "no-store" });
+  if (!r.ok) throw new Error(r.status === 400 ? "prive" : "HTTP " + r.status);
+  const j = await r.json();
+  return j.feeds.map(f => ({ ...f, t: new Date(f.created_at) }));
+}
+
+/* Courbe simple en SVG : pas de bibliotheque, la page reste legere */
+function courbe(svg, points, coul) {
+  const w = 300, h = 100;
+  svg.setAttribute("viewBox", `0 0 ${w} ${h}`);
+  if (points.length < 2) { svg.innerHTML = ""; return; }
+  const ys = points.map(p => p.y), min = Math.min(...ys), max = Math.max(...ys);
+  const marge = (max - min) || 1;
+  const t0 = points[0].t, t1 = points[points.length - 1].t;
+  const d = points.map((p, i) => {
+    const x = (p.t - t0) / ((t1 - t0) || 1) * w;
+    const y = h - 8 - (p.y - min) / marge * (h - 16);
+    return (i ? "L" : "M") + x.toFixed(1) + "," + y.toFixed(1);
+  }).join(" ");
+  svg.innerHTML = `<path d="${d}" fill="none" stroke="${coul}" stroke-width="2.5" vector-effect="non-scaling-stroke"/>`;
+}
+
+/* Bande de verdicts : un rectangle colore par periode de meme classe */
+function bande(svg, points, t0, t1) {
+  const w = 1000;
+  svg.setAttribute("viewBox", `0 0 ${w} 10`);
+  let s = "";
+  points.forEach((p, i) => {
+    const fin = i + 1 < points.length ? points[i + 1].t : t1;
+    const x0 = Math.max(0, (p.t - t0) / (t1 - t0) * w), x1 = Math.min(w, (fin - t0) / (t1 - t0) * w);
+    if (x1 > x0 && p.c >= 0 && p.c < 4) s += `<rect x="${x0}" y="0" width="${x1 - x0 + 0.5}" height="10" fill="${couleur(p.c)}"/>`;
+  });
+  svg.innerHTML = s;
+}
+
+/* Verdict Edge en vigueur a un instant donne (derniere mesure anterieure) */
+function edgeA(mesures, t) {
+  let c = null;
+  for (const m of mesures) { if (m.t <= t) c = m.c; else break; }
+  return c;
+}
+
+async function rafraichir() {
+  let mesures, cloud = [];
+  try {
+    mesures = (await lireCanal(CANAL_MESURES, NB_POINTS))
+      .map(f => ({ t: f.t, c: parseInt(f.field4), conf: +f.field5, us: +f.field6,
+                   temp: +f.field1, hum: +f.field2, pres: +f.field3 }))
+      .filter(m => !isNaN(m.c));
+    if (CANAL_CLOUD) {
+      cloud = (await lireCanal(CANAL_CLOUD, 120))
+        .map(f => ({ t: f.t, c: parseInt(f.field1), conf: +f.field2, ms: +f.field3, age: +f.field4,
+                     p: [+f.field5, +f.field6, +f.field7, +f.field8] }))
+        .filter(m => !isNaN(m.c));
+    }
+    $("alerte").style.display = "none";
+  } catch (e) {
+    $("alerte").style.display = "block";
+    $("alerte").textContent = e.message === "prive"
+      ? "Le canal ThingSpeak est privé : le rendre public (Sharing → Share channel view with everyone)."
+      : "ThingSpeak injoignable pour l'instant (" + e.message + "), nouvel essai dans 15 s.";
+    return;
+  }
+  if (!mesures.length) return;
+
+  const der = mesures[mesures.length - 1];
+  const ageS = Math.round((Date.now() - der.t) / 1000);
+  $("maj").textContent = `dernière mesure à ${heure(der.t)}` + (ageS > 120 ? ` (il y a ${Math.round(ageS / 60)} min : carte arrêtée ?)` : "");
+
+  /* Cartes Edge et Cloud */
+  $("e-classe").textContent = CLASSES[der.c] ?? "—";
+  $("e-det").textContent = `${der.conf} % de confiance · calculé en ${der.us} µs sur le Cortex-M55`;
+  if (cloud.length) {
+    const dc = cloud[cloud.length - 1];
+    $("c-classe").textContent = CLASSES[dc.c] ?? "—";
+    $("c-det").textContent = `${dc.conf} % · reçu à ${heure(dc.t)}, ${Math.round(dc.age)} s après la mesure`;
+    $("c-bars").innerHTML = dc.p.map((v, i) =>
+      `<div><span>${CLASSES[i]}</span><span class="b"><i style="width:${v}%;background:${couleur(i)}"></i></span><span class="p">${v} %</span></div>`).join("");
+  } else {
+    $("c-classe").textContent = CANAL_CLOUD ? "en attente" : "—";
+    $("c-det").textContent = CANAL_CLOUD ? "pas encore de verdict du script MATLAB" : "canal Cloud pas encore renseigné";
+  }
+
+  /* Bandes de verdicts sur la fenetre commune */
+  const t1 = new Date(), t0 = mesures[0].t;
+  bande($("lane-e"), mesures, t0, t1);
+  bande($("lane-c"), cloud.filter(c => c.t >= t0), t0, t1);
+  $("axe-debut").textContent = heure(t0);
+
+  /* Accord : verdict Cloud compare au verdict Edge de la meme mesure */
+  const comparables = cloud.filter(c => c.t >= t0).map(c => [c.c, edgeA(mesures, new Date(c.t - c.age * 1000))]).filter(x => x[1] !== null);
+  if (comparables.length) {
+    const ok = comparables.filter(x => x[0] === x[1]).length;
+    $("accord").textContent = `· Cloud et carte d'accord ${ok} fois sur ${comparables.length}`;
+  }
+
+  /* Le duel : dernier changement de verdict sur la carte, et le moment ou le
+     Cloud rend le meme verdict. C'est le vrai retard du Cloud, bout en bout. */
+  let iChg = -1;
+  for (let i = mesures.length - 1; i > 0; i--) { if (mesures[i].c !== mesures[i - 1].c) { iChg = i; break; } }
+  if (iChg > 0) {
+    const chg = mesures[iChg];
+    const rattrape = cloud.find(c => c.t >= chg.t && c.c === chg.c);
+    const txt = `La carte a vu « <b style="color:${couleur(chg.c)}">${CLASSES[chg.c]}</b> » à ${heure(chg.t)}`;
+    if (rattrape) {
+      const retard = Math.round((rattrape.t - chg.t) / 1000);
+      $("duel").innerHTML = `${txt}. Le Cloud l'a vu <b>${retard} s</b> plus tard.`;
+      $("duel-note").textContent = `Côté carte : ${chg.us} µs de calcul. Côté Cloud : envoi, file d'attente ThingSpeak, script MATLAB, retour.`;
+    } else {
+      $("duel").innerHTML = `${txt}. Le Cloud ne l'a pas encore vu…`;
+      $("duel-note").textContent = `Déjà ${Math.round((Date.now() - chg.t) / 1000)} s d'avance pour la carte.`;
+    }
+  }
+
+  /* Courbes des capteurs */
+  courbe($("g-t"), mesures.map(m => ({ t: m.t, y: m.temp })), "#ea580c");
+  courbe($("g-h"), mesures.map(m => ({ t: m.t, y: m.hum })), "#0891b2");
+  courbe($("g-p"), mesures.map(m => ({ t: m.t, y: m.pres })), "#7c3aed");
+  $("v-t").textContent = der.temp.toFixed(1) + " °C";
+  $("v-h").textContent = der.hum.toFixed(0) + " %";
+  $("v-p").textContent = der.pres.toFixed(1) + " hPa";
+}
+
+/* QR code de cette page, pour l'ouvrir sur un telephone */
+/* Ouverte en fichier local, la page n'a pas d'adresse publique : on encode
+   alors celle de GitHub Pages. */
+const ADRESSE = location.protocol.startsWith("http") ? location.href
+              : "https://mohammed-raid.github.io/MeteoAIMasterESET2/";
+$("url").textContent = ADRESSE;
+try { new QRCode($("qr"), { text: ADRESSE, width: 140, height: 140 }); } catch (e) { $("qr").style.display = "none"; }
+
+rafraichir();
+setInterval(rafraichir, PERIODE_MS);
+</script>
+</body>
+</html>
