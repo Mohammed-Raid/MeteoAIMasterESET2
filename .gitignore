@@ -35,3 +35,8 @@ Core/Inc/config_cloud_local.h
 TP3_IA/meteo_raw.parquet
 TP3_IA/TP3_export.zip
 TP3_IA/export/donnees_split.npz
+
+# Notes personnelles de soutenance : gardees hors du depot
+DEMO.md
+PITCH.md
+PITCH_SIMPLE.md

@@ -42,7 +42,7 @@ function Erreur([string]$texte){ Write-Host "ERREUR : $texte" -ForegroundColor R
 
 # --- 0. Verifications ---------------------------------------------------------
 Etape "Verifications"
-if (-not (Test-Path $Elf)) { Erreur "programme introuvable : $Elf. Le compiler avec 'make PARTIE=5', ou passer par CubeIDE (voir DEMO.md)." }
+if (-not (Test-Path $Elf)) { Erreur "programme introuvable : $Elf. Le compiler avec 'make PARTIE=5', ou passer par CubeIDE (voir README.md)." }
 $Elf = (Resolve-Path $Elf).Path
 Info "programme : $Elf"
 
@@ -154,7 +154,7 @@ if ($port) {
 
 if (-not $adresse) {
   Alerte "La carte n'a pas obtenu d'adresse : le reseau ne lui en donne pas (pas de DHCP pour elle)."
-  Alerte "  Solution : la brancher sur le PC et activer le partage de connexion (voir DEMO.md)."
+  Alerte "  Solution : la brancher sur le PC et activer le partage de connexion (ncpa.cpl > Wi-Fi > Partage)."
   exit 1
 }
 
