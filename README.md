@@ -4,8 +4,6 @@ Projet unique couvrant le TP2 (interface capteurs et STM32) et la partie embarqu
 
 ![Schéma du projet : mesurer, décider sur la carte, décider dans le Cloud](docs/schema_projet.png)
 
-Pour la soutenance : `PITCH_SIMPLE.md` (pitch de 3 minutes), `DEMO.md` (fiche de démo), `PITCH.md` (version détaillée).
-
 ## Correspondance entre les sujets et le dépôt
 
 | Sujet | Demandé | Où | Partie |
