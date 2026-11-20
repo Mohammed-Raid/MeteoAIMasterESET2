@@ -68,6 +68,19 @@ l'adresse `adresse IP : ...` lue sur la console. Pas testé avec la partie 5.
 | 1:30 | `envoi ThingSpeak : ok`, `[CLOUD] Clair (49 %)` | même modèle dans MATLAB sur ThingSpeak, verdict renvoyé par TalkBack |
 | 2:00 | ligne `Cloud : ... aller-retour HTTP ~450 ms` | **105 µs contre ~450 ms**, environ 4 000 fois plus lent, pour le même verdict |
 | 2:20 | couper Internet (voir ci-dessous) | le Cloud tombe, la carte continue de décider |
+| 2:40 | page en ligne et son QR code | « scannez : vous suivez la carte en direct sur votre téléphone » |
+
+**La page en ligne** : <https://mohammed-raid.github.io/MeteoAIMasterESET2/>.
+Elle lit les canaux ThingSpeak (publics) : verdicts carte et Cloud, frise des
+verdicts, nombre d'accords entre les deux, courbes des capteurs, QR code. Elle
+marche sans la carte sur le même réseau, mais n'affiche du direct que si la
+carte envoie à ThingSpeak. Mise à jour toutes les 15 s.
+
+**Le souffle** : souffler quelques secondes sur la carte fait monter
+l'humidité. D'après le modèle, au-delà de 60 % il passe à « Nuageux », vers
+75 % à « Pluie ». La page locale le montre en 2 s ; la page en ligne affiche
+ensuite « La carte a vu Pluie à … Le Cloud l'a vu … s plus tard ». Pas encore
+essayé sur la carte : le tester une fois avant de passer.
 
 Le geste de 2:20 dépend du montage. Il n'a pas été répété : le tester une
 fois sur place avant de passer.

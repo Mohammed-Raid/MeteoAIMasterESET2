@@ -68,6 +68,17 @@ du PC. Détails dans `DEMO.md`.
 > « Je coupe Internet. Le Cloud ne répond plus. La carte, elle, continue de
 > décider. » *(Rebrancher.)*
 
+**Bonus, si le temps le permet** : souffler sur la carte.
+
+> « Mon souffle est chaud et humide : je crée un nuage. Regardez, la carte
+> passe à « Nuageux », puis « Pluie », en deux secondes. Et sur la page en
+> ligne, vous voyez combien de temps le Cloud a mis à s'en rendre compte. »
+
+Montrer le QR code de la page en ligne :
+
+> « Scannez : vous suivez notre carte en direct sur votre téléphone. Et la
+> carte et le Cloud sont d'accord à chaque fois. »
+
 ## 2:30 – 3:00 · La leçon (B)
 
 > « Dernière chose : on a aussi essayé un simple **arbre de décision**,
