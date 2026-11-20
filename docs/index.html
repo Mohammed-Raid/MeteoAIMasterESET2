@@ -275,8 +275,12 @@ async function rafraichir() {
 }
 
 /* QR code de cette page, pour l'ouvrir sur un telephone */
-$("url").textContent = location.href;
-try { new QRCode($("qr"), { text: location.href, width: 140, height: 140 }); } catch (e) { $("qr").style.display = "none"; }
+/* Ouverte en fichier local, la page n'a pas d'adresse publique : on encode
+   alors celle de GitHub Pages. */
+const ADRESSE = location.protocol.startsWith("http") ? location.href
+              : "https://mohammed-raid.github.io/MeteoAIMasterESET2/";
+$("url").textContent = ADRESSE;
+try { new QRCode($("qr"), { text: ADRESSE, width: 140, height: 140 }); } catch (e) { $("qr").style.display = "none"; }
 
 rafraichir();
 setInterval(rafraichir, PERIODE_MS);
